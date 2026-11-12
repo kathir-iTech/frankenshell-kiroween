@@ -4,7 +4,7 @@ A personal Kiroween 2026 project exploring a simple question: did a repair prese
 
 Run actual reviewed Python in your browser, compare an original and two prepared repairs, inspect independent checks and counterexamples, and export a bundle that reruns in local Python. No account or model API is required by the public examples.
 
-[Open the hosted workbench](https://frankenshell-resurrection-lab.indigokiwi69.chatgpt.site/)
+[Open the hosted workbench](https://kathir-itech.github.io/frankenshell-kiroween/)
 
 ## Run locally
 
