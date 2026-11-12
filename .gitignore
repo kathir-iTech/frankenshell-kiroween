@@ -1,0 +1,28 @@
+# Python
+.venv/
+apps/web/public/runtime/
+apps/web/public/cases.json
+apps/web/public/runner.py
+apps/web/public/THIRD_PARTY_NOTICES.txt
+test-results/
+playwright-report/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+dist/
+.next/
+out/
+.vercel
+
+# System
+.DS_Store
+Thumbs.db

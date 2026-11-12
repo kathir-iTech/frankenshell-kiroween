@@ -1,0 +1,38 @@
+{
+  "id": "vanishing-order",
+  "title": "The Vanishing Order",
+  "subtitle": "An exception disappears. So does an order.",
+  "tag": "DATA LOSS",
+  "description": "An order processor crashes on a blank quantity. Does catching the exception actually fix it?",
+  "contract": "Blank quantity means one. Explicit zero stays zero. Preserve every order, its identifier, and its position. Never modify the input.",
+  "input": [
+    {
+      "id": "A",
+      "quantity": "2",
+      "unit_cents": 150
+    },
+    {
+      "id": "B",
+      "quantity": "",
+      "unit_cents": 250
+    },
+    {
+      "id": "C",
+      "quantity": "0",
+      "unit_cents": 999
+    }
+  ],
+  "sources": {
+    "original": "def transform(rows):\n    return [{\"id\": r[\"id\"], \"total_cents\": int(r[\"quantity\"]) * r[\"unit_cents\"]} for r in rows]",
+    "shortcut": "def transform(rows):\n    result = []\n    for row in rows:\n        try:\n            result.append({\"id\": row[\"id\"], \"total_cents\": int(row[\"quantity\"]) * row[\"unit_cents\"]})\n        except ValueError:\n            continue\n    return result",
+    "corrected": "def transform(rows):\n    return [\n        {\n            \"id\": row[\"id\"],\n            \"total_cents\": (1 if row[\"quantity\"] == \"\" else int(row[\"quantity\"])) * row[\"unit_cents\"],\n        }\n        for row in rows\n    ]\n"
+  },
+  "schemaVersion": 1,
+  "candidateOrigin": "prepared",
+  "limits": {
+    "inputBytes": 65536,
+    "outputBytes": 65536,
+    "executionMs": 3000
+  },
+  "repairAttribution": "Kiro CLI generated the corrected candidate and bugfix document; tests executed separately."
+}

@@ -1,0 +1,7 @@
+{
+  "name": "lab-review",
+  "description": "Review actual FrankenShell case results through three bounded MCP tools.",
+  "prompt": "Use the FrankenShell MCP server to inspect reviewed case packs. Report observed outputs and failed checks. Never claim prepared candidates were generated live. You have no shell or arbitrary file-writing tools.",
+  "tools": ["@frankenshell"],
+  "includeMcpJson": true
+}

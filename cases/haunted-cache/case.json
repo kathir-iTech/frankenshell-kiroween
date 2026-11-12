@@ -1,0 +1,34 @@
+{
+  "id": "haunted-cache",
+  "title": "The Haunted Cache",
+  "subtitle": "Old answers keep coming back.",
+  "tag": "STALE STATE",
+  "description": "A cached result ignores configuration changes. Removing the cache fixes the values, but breaks reuse.",
+  "contract": "Return len(key) \u00d7 multiplier for each request. Compute once for each distinct (key, multiplier) pair. Preserve request order. Never modify the input.",
+  "input": [
+    {
+      "key": "mist",
+      "multiplier": 2
+    },
+    {
+      "key": "mist",
+      "multiplier": 3
+    },
+    {
+      "key": "mist",
+      "multiplier": 3
+    }
+  ],
+  "sources": {
+    "original": "def transform(requests):\n    cache, values, calls = {}, [], 0\n    for request in requests:\n        key = request[\"key\"]\n        if key not in cache:\n            cache[key] = len(key) * request[\"multiplier\"]\n            calls += 1\n        values.append(cache[key])\n    return {\"values\": values, \"calls\": calls}",
+    "shortcut": "def transform(requests):\n    return {\"values\": [len(r[\"key\"]) * r[\"multiplier\"] for r in requests], \"calls\": len(requests)}",
+    "corrected": "def transform(requests):\n    cache, values, calls = {}, [], 0\n    for request in requests:\n        key = (request[\"key\"], request[\"multiplier\"])\n        if key not in cache:\n            cache[key] = len(request[\"key\"]) * request[\"multiplier\"]\n            calls += 1\n        values.append(cache[key])\n    return {\"values\": values, \"calls\": calls}"
+  },
+  "schemaVersion": 1,
+  "candidateOrigin": "prepared",
+  "limits": {
+    "inputBytes": 65536,
+    "outputBytes": 65536,
+    "executionMs": 3000
+  }
+}

@@ -1,0 +1,5 @@
+from pathlib import Path
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'python'))
+from frankenshell.__main__ import main
+main()

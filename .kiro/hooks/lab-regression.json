@@ -1,0 +1,12 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "lab-session-regression-check",
+      "trigger": "SessionStart",
+      "action": {"type": "command", "command": "python scripts/check_cases.py"},
+      "timeout": 30,
+      "enabled": true
+    }
+  ]
+}
