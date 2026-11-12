@@ -8,7 +8,7 @@ test("real Python comparison, changed input, export reproduction, reset and cach
 }, testInfo) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto("/");
+  await page.goto("./");
   await expect(
     page.getByRole("heading", { name: "The Vanishing Order", exact: true }),
   ).toBeVisible();
@@ -93,7 +93,7 @@ test("real Python comparison, changed input, export reproduction, reset and cach
 
 test("runtime load failure is visible and retryable", async ({ page }) => {
   await page.route("**/runtime/pyodide.mjs", (route) => route.abort());
-  await page.goto("/");
+  await page.goto("./");
   await page
     .getByRole("button", { name: "Compare repairs", exact: true })
     .click();
@@ -110,7 +110,7 @@ test("invalid input, cancellation, source diff, and mobile layout", async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("./");
   await expect(
     page.getByRole("button", { name: "Compare repairs", exact: true }),
   ).toBeEnabled();
@@ -142,7 +142,7 @@ test("invalid input, cancellation, source diff, and mobile layout", async ({
 test("table input edits the underlying JSON and switching cases restores clean data", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("./");
   await page.getByLabel("Row 2 unit_cents").fill("850");
   await page.getByRole("button", { name: "JSON", exact: true }).click();
   await expect(page.getByLabel("Input JSON")).toHaveValue(/850/);
