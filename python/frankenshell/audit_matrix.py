@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import time
 
-from .audit import assess, execute, run_worker
+from .audit import WorkerTimeout, assess, execute, run_worker
 
 
 def digest(path):
@@ -258,6 +258,11 @@ def main(path, replay, output_format):
         candidate = revisions["candidate"]
         failed = candidate["counts"]["failed"] or not candidate.get("unittest", {"passed": True})["passed"]
         report["status"] = "failed" if failed else "passed"
+    except (WorkerTimeout, subprocess.TimeoutExpired) as exc:
+        if time.monotonic() - started >= budget:
+            report["error"] = f"{stage}: Audit time budget exhausted"
+        else:
+            report["error"] = f"{stage}: {exc}"
     except Exception as exc:
         report["error"] = f"{stage}: {exc}"
     report["elapsed_seconds"] = round(time.monotonic() - started, 3)

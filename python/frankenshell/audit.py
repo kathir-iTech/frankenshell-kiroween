@@ -13,6 +13,10 @@ from pathlib import Path
 from . import audit_child
 
 
+class WorkerTimeout(ValueError):
+    """A checkout worker ran out of time."""
+
+
 def run_worker(root, arguments, payload, timeout):
     with tempfile.TemporaryDirectory(prefix="frankenshell-") as directory:
         response_path = Path(directory) / "response.json"
@@ -29,7 +33,7 @@ def run_worker(root, arguments, payload, timeout):
                 check=False,
             )
         except subprocess.TimeoutExpired as exc:
-            raise ValueError(f"{root}: execution exceeded {timeout}s") from exc
+            raise WorkerTimeout(f"{root}: execution exceeded {timeout:g}s") from exc
         if process.returncode or not response_path.is_file():
             raise ValueError(f"{root}: worker exited with status {process.returncode}")
         response = json.loads(response_path.read_text(encoding="utf-8"))
