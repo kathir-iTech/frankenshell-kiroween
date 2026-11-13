@@ -57,7 +57,11 @@ test("opens a real checkout report and keeps the comparison after an invalid imp
   await expect(
     page.getByRole("heading", { name: "Counterexample" }),
   ).toBeVisible();
-  await expect(page.getByText(/"preserve_zero"/)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "preserve_zero" }),
+  ).toBeVisible();
+  await expect(page.getByText("Expected", { exact: true })).toBeVisible();
+  await expect(page.getByText("Actual", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
     390,
   );

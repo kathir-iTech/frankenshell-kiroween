@@ -71,3 +71,57 @@
 .audit-results h2 {
   overflow-wrap: anywhere;
 }
+.audit-findings {
+  padding: 10px 18px;
+  border-top: 1px solid #ead1c6;
+  border-left: 3px solid #ad3217;
+  background: #f6e8e0;
+}
+.audit-findings p {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+.audit-count-note {
+  border-top: 1px solid var(--line);
+  color: #55584f;
+  margin: 0;
+  padding: 8px 18px;
+  font-size: 12px;
+}
+.audit-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  margin: 0 0 12px;
+}
+.audit-input pre {
+  margin: 0;
+  min-width: 0;
+}
+.audit-violation {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+  padding-top: 10px;
+}
+.audit-violation h5 {
+  margin: 0;
+  font: 700 13px var(--mono);
+}
+.audit-values {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 10px;
+  margin-bottom: 0;
+  font-size: 13px;
+}
+.audit-values dd {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.audit-raw {
+  margin-top: 16px;
+}
+.audit-results summary {
+  cursor: pointer;
+}

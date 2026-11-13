@@ -15,6 +15,15 @@ const statuses = {
 };
 type Report = ReturnType<typeof parseAuditReport>;
 
+function valueText(value: unknown) {
+  const compact = JSON.stringify(value);
+  return compact.length <= 100 ? compact : JSON.stringify(value, null, 2);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 export default function AuditWorkspace() {
   const [opened, setOpened] = useState<{ name: string; report: Report } | null>(
     null,
@@ -22,6 +31,8 @@ export default function AuditWorkspace() {
   const [error, setError] = useState("");
   const request = useRef(0);
   const report = opened?.report;
+  const missed =
+    report?.rows.filter((row) => row.testsPassed && row.failed > 0) ?? [];
 
   async function openReport(file: File) {
     const id = ++request.current;
@@ -103,6 +114,23 @@ export default function AuditWorkspace() {
               </p>
             </header>
             {report.error && <p className="benchmark-error">{report.error}</p>}
+            {missed.length > 0 && (
+              <div
+                className="audit-findings"
+                aria-label="Failures missed by shared tests"
+              >
+                {missed.map((row) => (
+                  <p key={row.name}>
+                    <strong>{row.name}</strong> passed the shared tests and
+                    failed the contract on{" "}
+                    <strong>
+                      {row.failed} of {report.inputsChecked}
+                    </strong>{" "}
+                    checked inputs.
+                  </p>
+                ))}
+              </div>
+            )}
             {report.rows.length > 0 && (
               <div className="benchmark-table-wrap">
                 <table className="benchmark-table">
@@ -111,8 +139,8 @@ export default function AuditWorkspace() {
                       <th scope="col">Version</th>
                       <th scope="col">Shared tests</th>
                       <th scope="col">Failing inputs</th>
-                      <th scope="col">Introduced</th>
-                      <th scope="col">Resolved</th>
+                      <th scope="col">New failures vs. baseline</th>
+                      <th scope="col">Baseline failures resolved</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -127,37 +155,83 @@ export default function AuditWorkspace() {
                     ))}
                   </tbody>
                 </table>
+                <p className="audit-count-note">
+                  Counts are per input. The same input can resolve one baseline
+                  violation and introduce another.
+                </p>
               </div>
             )}
             {report.witness ? (
               <div className="audit-witness">
                 <h3>Counterexample</h3>
                 <p>Replay status · {report.witness.confirmation}</p>
-                <h4>Input</h4>
-                <pre>{JSON.stringify(report.witness.input, null, 2)}</pre>
+                <div className="audit-input">
+                  <strong>Input</strong>
+                  <pre>{valueText(report.witness.input)}</pre>
+                </div>
                 <div className="audit-outcomes">
                   {report.witness.results.map(
                     ({ name, outcome, violations }) => (
                       <section key={name}>
                         <h4>{name}</h4>
-                        <p>
-                          {Object.keys(violations).length
-                            ? "Contract violations"
-                            : "No contract violations"}
-                        </p>
-                        <pre>
-                          {JSON.stringify(
+                        <p
+                          className={
                             Object.keys(violations).length
-                              ? { outcome, violations }
-                              : outcome,
-                            null,
-                            2,
-                          )}
-                        </pre>
+                              ? "outcome-fail"
+                              : "outcome-pass"
+                          }
+                        >
+                          {Object.keys(violations).length
+                            ? "Contract failed"
+                            : "Contract passed"}
+                        </p>
+                        {isRecord(outcome.error) ? (
+                          <p>
+                            <strong>Raised</strong>{" "}
+                            <code>{typeof outcome.error.type === "string" ? outcome.error.type : "Error"}</code>
+                            {typeof outcome.error.message === "string" && (
+                              <> · {outcome.error.message}</>
+                            )}
+                          </p>
+                        ) : (
+                          <pre aria-label={`Output for ${name}`}>
+                            {valueText(outcome.output ?? null)}
+                          </pre>
+                        )}
+                        {Object.entries(violations).map(([rule, detail]) => (
+                          <div className="audit-violation" key={rule}>
+                            <h5>
+                              {rule === "exception"
+                                ? "Execution raised an exception"
+                                : rule}
+                            </h5>
+                            {isRecord(detail) &&
+                            Object.hasOwn(detail, "expected") &&
+                            Object.hasOwn(detail, "actual") ? (
+                              <dl className="audit-values">
+                                <dt>Expected</dt>
+                                <dd>
+                                  <code>{valueText(detail.expected)}</code>
+                                </dd>
+                                <dt>Actual</dt>
+                                <dd>
+                                  <code>{valueText(detail.actual)}</code>
+                                </dd>
+                              </dl>
+                            ) : rule !== "exception" ||
+                              !isRecord(outcome.error) ? (
+                              <pre>{valueText(detail)}</pre>
+                            ) : null}
+                          </div>
+                        ))}
                       </section>
                     ),
                   )}
                 </div>
+                <details className="audit-raw">
+                  <summary>Raw counterexample data</summary>
+                  <pre>{JSON.stringify(report.witness, null, 2)}</pre>
+                </details>
               </div>
             ) : (
               <p className="audit-witness">

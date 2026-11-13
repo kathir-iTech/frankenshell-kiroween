@@ -68,6 +68,7 @@ export function parseAuditReport(text: string) {
       introduced,
       resolved,
       tests,
+      testsPassed: isObject(suite) && suite.passed === true,
       commit: typeof git?.commit === "string" ? git.commit : null,
       dirty: git?.dirty === true,
       modulePath: typeof module?.path === "string" ? module.path : null,
