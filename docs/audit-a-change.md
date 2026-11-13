@@ -2,6 +2,15 @@
 
 Use trusted local checkouts of the same project. Pick a synchronous function that accepts one JSON-compatible argument and returns a JSON-compatible result. Run FrankenShell with the Python interpreter that has the project's dependencies installed. Supply directories that make the module importable, such as each checkout's `src/` directory for a src layout.
 
+From a terminal, clone FrankenShell and open its repository directory:
+
+```sh
+git clone https://github.com/kathir-iTech/frankenshell-kiroween.git
+cd frankenshell-kiroween
+```
+
+The invoice example below uses only Python's standard library.
+
 ## Compare a baseline, a proposed fix, and alternatives
 
 Save this as `audit-config.json` in a directory of your choice. Paths are relative to the config file. The shared `unittest` suite is optional. When present, FrankenShell executes it against each implementation before running the contract.
@@ -20,9 +29,9 @@ Save this as `audit-config.json` in a directory of your choice. Paths are relati
   },
   "unittest": {"directory": "shared-tests", "pattern": "test_invoice.py"},
   "source_files": ["invoice.py"],
-  "cases": 32,
+  "cases": 8,
   "seed": 2026,
-  "timeout": 5,
+  "timeout": 15,
   "budget_seconds": 120
 }
 ```
@@ -69,8 +78,16 @@ def check(order, actual):
 ```
 
 ```bash
-python scripts/audit_repair.py --config path/to/audit-config.json > audit.json
+python -X utf8 scripts/audit_repair.py --config path/to/audit-config.json > audit.json
 python scripts/audit_repair.py --config path/to/audit-config.json --replay audit.json --format text
+```
+
+If you use Windows PowerShell 5.1, save the report as UTF-8 with this command:
+
+```powershell
+$env:PYTHONIOENCODING = "utf-8"
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new()
+python scripts/audit_repair.py --config path/to/audit-config.json | Set-Content -Encoding utf8 audit.json
 ```
 
 Open `audit.json` in the [web workspace](https://kathir-itech.github.io/frankenshell-kiroween/) to inspect the comparison. The browser reads the report locally.
