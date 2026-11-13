@@ -13,14 +13,14 @@ from pathlib import Path
 from . import audit_child
 
 
-def execute(root, target, case, timeout):
+def run_worker(root, arguments, payload, timeout):
     with tempfile.TemporaryDirectory(prefix="frankenshell-") as directory:
         response_path = Path(directory) / "response.json"
         try:
             process = subprocess.run(
                 [sys.executable, "-I", "-X", "utf8", str(Path(audit_child.__file__).resolve()),
-                 target, str(response_path)],
-                input=json.dumps(case, allow_nan=False),
+                 str(response_path), *arguments],
+                input=payload,
                 encoding="utf-8",
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -36,6 +36,11 @@ def execute(root, target, case, timeout):
         if "setup_error" in response:
             raise ValueError(f"{root}: {response['setup_error']}")
         return response
+
+
+def execute(root, target, case, timeout, *, identify_source=False):
+    mode = "identified" if identify_source else "call"
+    return run_worker(root, [mode, target], json.dumps(case, allow_nan=False), timeout)
 
 
 def assess(check, case, outcome):
@@ -69,17 +74,32 @@ def compare_case(baseline, candidate, target, check, case, timeout):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        description="Audit a JSON-in/JSON-out function in two trusted Python checkouts."
+        description="Audit a JSON-in/JSON-out function across trusted Python checkouts."
     )
-    parser.add_argument("--baseline", required=True, type=Path)
-    parser.add_argument("--candidate", required=True, type=Path)
-    parser.add_argument("--target", required=True, help="Import path, e.g. orders:transform")
-    parser.add_argument("--contract", required=True, type=Path)
-    parser.add_argument("--seed", type=int, default=2026)
-    parser.add_argument("--cases", type=int, default=32)
-    parser.add_argument("--timeout", type=float, default=5)
+    parser.add_argument("--config", type=Path, help="Run a versioned checkout matrix")
+    parser.add_argument("--baseline", type=Path)
+    parser.add_argument("--candidate", type=Path)
+    parser.add_argument("--target", help="Import path, e.g. orders:transform")
+    parser.add_argument("--contract", type=Path)
+    parser.add_argument("--seed", type=int)
+    parser.add_argument("--cases", type=int)
+    parser.add_argument("--timeout", type=float)
     parser.add_argument("--replay", type=Path, help="Replay the witness from a prior report")
+    parser.add_argument("--format", choices=["json", "text"], help="Output format for --config")
     args = parser.parse_args(argv)
+    direct = (args.baseline, args.candidate, args.target, args.contract)
+    if args.config:
+        if any(value is not None for value in (*direct, args.seed, args.cases, args.timeout)):
+            parser.error("--config can be combined with --replay and --format")
+        from .audit_matrix import main as matrix_main
+        return matrix_main(args.config, args.replay, args.format or "json")
+    if args.format:
+        parser.error("--format requires --config")
+    if not all(direct):
+        parser.error("Supply --config or all of --baseline, --candidate, --target and --contract")
+    args.seed = 2026 if args.seed is None else args.seed
+    args.cases = 32 if args.cases is None else args.cases
+    args.timeout = 5 if args.timeout is None else args.timeout
     if not 1 <= args.cases <= 256 or not 0 < args.timeout <= 60:
         parser.error("--cases must be 1–256 and --timeout must be positive and at most 60")
     try:

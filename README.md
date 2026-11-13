@@ -26,8 +26,8 @@ Both are historical releases. The experiment supplies the alternatives and execu
 ## Run locally
 
 **Checking your own Python change?** Use the [local checkout verifier](docs/audit-a-change.md)
-to run the same generated inputs against two versions of a function. It reports newly
-introduced and resolved contract violations and saves an input you can replay in CI.
+to compare a baseline, proposed fix, and alternatives using the same contract and optional
+shared tests. It reports introduced and resolved violations and saves an input you can replay in CI.
 In the browser's **Interactive lab**, **Find counterexample** searches variations of the selected
 case and removes rows while the quick fix still fails.
 
