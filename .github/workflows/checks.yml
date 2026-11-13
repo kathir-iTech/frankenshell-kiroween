@@ -16,6 +16,14 @@ jobs:
       - run: npm test
       - run: python scripts/reproduce_benchmarks.py --out evidence
       - run: git diff --exit-code -- evidence/benchmarks.json evidence/test_quantiles_regression.py evidence/test_dedent_regression.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cpython-regression-evidence
+          path: |
+            evidence/benchmarks.json
+            evidence/test_quantiles_regression.py
+            evidence/test_dedent_regression.py
+          if-no-files-found: error
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
