@@ -2,7 +2,7 @@
 
 A Python patch verifier for maintainers who need to check what a change does on inputs their tests missed. Built for Kiroween 2026 in the Frankenstein category.
 
-The hosted workbench opens with two recorded CPython experiments. Each compares a previous release, an official fix, and a controlled one-line alternative. The alternatives pass the selected upstream test classes. FrankenShell records an input that exposes each difference and produces a plain Python regression test verified against all three versions.
+The hosted workbench opens with two recorded CPython experiments. Each compares a previous release, an official fix, and a controlled one-line alternative. The alternatives pass the selected upstream test classes. FrankenShell records an input that exposes each difference and produces a plain Python regression test verified against all three versions. **Run in Python** executes the selected input against the three pinned implementations in your browser. The upstream test counts come from the recorded CPython benchmark.
 
 [Open the hosted workbench](https://kathir-itech.github.io/frankenshell-kiroween/)
 
@@ -29,7 +29,7 @@ This reconstructs each revision in a temporary source directory, checks the shar
 | [`statistics.quantiles`](https://docs.python.org/3.13/library/statistics.html#statistics.quantiles) | 5/5 from `TestQuantiles`, CPython v3.13.0 | `quantiles([7], n=2)` returned `[7, 7, 7]` with the alternative. The official fix returned `[7]`. |
 | [`textwrap.dedent`](https://docs.python.org/3.14/library/textwrap.html#textwrap.dedent) | 6/6 from `DedentTestCase`, CPython v3.13.0 | A line with a non-breaking space kept the surrounding text indented with the alternative. The official fix normalized the blank line and removed the shared indent. |
 
-Both are historical releases. The experiment supplies the alternatives and executes the named upstream classes. The repository includes the report and exported regression tests in [evidence](evidence/). CPython source is fetched at reproduction time. See the [third-party notices](docs/third-party-notices.md).
+Both are historical releases. The experiment supplies the alternatives and executes the named upstream classes. The repository includes the report, exported regression tests, and browser source packs in [evidence](evidence/). The reproduction command fetches and verifies the upstream CPython files. See the [third-party notices](docs/third-party-notices.md).
 
 ## Run locally
 
@@ -87,7 +87,7 @@ The [recorded Kiro benchmark review](evidence/KIRO_BENCHMARK_REVIEW.md) document
 
 ## Evidence and boundaries
 
-The CPython page displays recorded benchmark runs. The interactive lab executes its prepared repair source in browser Python. Passing finite checks establishes behavior for the declared input and contract.
+The CPython page displays recorded benchmark results and runs selected inputs on demand. The interactive lab executes its prepared repair source in browser Python. Passing finite checks establishes behavior for the declared input and contract.
 
 Browser execution is for reviewed bundled source. Local commands and downloaded verifiers execute trusted Python and are not OS sandboxes. Review source before running a third-party pack. Hashes check against a supplied manifest; they do not certify an author or SLSA level. This release includes the browser workbench and its local verifier.
 

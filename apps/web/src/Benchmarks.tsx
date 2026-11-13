@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ArrowDownToLine, ArrowUpRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowDownToLine, ArrowUpRight, Play } from "lucide-react";
 import "./benchmarks.css";
 
 const roles = ["before", "alternative", "reference"] as const;
@@ -10,6 +10,12 @@ const names = {
 };
 type Role = (typeof roles)[number];
 type Outcome = { value: unknown } | { error: string; message: string };
+type LiveResults = Record<Role, Outcome>;
+type ReplayState =
+  | { status: "recorded" }
+  | { status: "loading" | "executing" }
+  | { status: "completed"; outcomes: LiveResults }
+  | { status: "failed"; error: string };
 type Probe = {
   args: unknown[];
   kwargs: Record<string, unknown>;
@@ -69,8 +75,12 @@ export default function Benchmarks() {
   const [activeId, setActiveId] = useState("quantiles");
   const [probeIndex, setProbeIndex] = useState(-1);
   const [error, setError] = useState("");
+  const [replay, setReplay] = useState<ReplayState>({ status: "recorded" });
+  const worker = useRef<Worker | null>(null);
+  const deadline = useRef<ReturnType<typeof setTimeout> | null>(null);
   const item = cases.find((entry) => entry.id === activeId);
   const probe = item && (item.probes[probeIndex] ?? item.witness);
+  const busy = replay.status === "loading" || replay.status === "executing";
 
   useEffect(() => {
     const controller = new AbortController();
@@ -99,15 +109,82 @@ export default function Benchmarks() {
         if (!controller.signal.aborted)
           setError("Could not load the benchmark report.");
       });
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      worker.current?.terminate();
+      if (deadline.current) clearTimeout(deadline.current);
+    };
   }, []);
 
+  function stopReplay() {
+    worker.current?.terminate();
+    worker.current = null;
+    if (deadline.current) clearTimeout(deadline.current);
+    deadline.current = null;
+  }
+
+  function resetReplay() {
+    stopReplay();
+    setReplay({ status: "recorded" });
+  }
+
   function selectCase(id: string) {
+    resetReplay();
     setActiveId(id);
     setProbeIndex(-1);
     const url = new URL(location.href);
     url.searchParams.set("case", id);
     history.replaceState(null, "", url);
+  }
+
+  function runReplay() {
+    if (!item || !probe || worker.current) return;
+    setReplay({ status: "loading" });
+    try {
+      const run = new Worker(
+        new URL("./benchmark-worker.ts", import.meta.url),
+        {
+          type: "module",
+        },
+      );
+      worker.current = run;
+      const fail = (error: string) => {
+        if (worker.current !== run) return;
+        stopReplay();
+        setReplay({ status: "failed", error });
+      };
+      const startDeadline = (ms: number, error: string) => {
+        if (deadline.current) clearTimeout(deadline.current);
+        deadline.current = setTimeout(() => fail(error), ms);
+      };
+      startDeadline(120_000, "Python is taking too long to load. Try again.");
+      run.onerror = () =>
+        fail("The Python worker stopped unexpectedly. Try again.");
+      run.onmessage = ({ data }) => {
+        if (worker.current !== run) return;
+        if (data.error) {
+          fail(data.error);
+        } else if (data.phase === "executing") {
+          setReplay({ status: "executing" });
+          startDeadline(8_000, "Python execution timed out. Try again.");
+        } else if (data.outcomes) {
+          stopReplay();
+          setReplay({ status: "completed", outcomes: data.outcomes });
+        }
+      };
+      run.postMessage({
+        baseUrl: new URL(import.meta.env.BASE_URL, location.href).pathname,
+        caseId: item.id,
+        args: probe.args,
+        kwargs: probe.kwargs,
+      });
+    } catch {
+      stopReplay();
+      setReplay({
+        status: "failed",
+        error: "Could not start the Python worker.",
+      });
+    }
   }
 
   return (
@@ -158,14 +235,6 @@ export default function Benchmarks() {
                   {item.test_class}.
                 </p>
               </div>
-              <button
-                className="benchmark-download"
-                type="button"
-                onClick={() => downloadTest(item)}
-              >
-                <ArrowDownToLine size={17} aria-hidden="true" /> Download
-                regression test
-              </button>
             </section>
             <section
               className="benchmark-experiment"
@@ -173,24 +242,57 @@ export default function Benchmarks() {
             >
               <header>
                 <h2 id="benchmark-witness">Replay an input</h2>
-                <span className="benchmark-meta">RECORDED PYTHON RUN</span>
+                <span role="status" className="benchmark-meta">
+                  {replay.status === "completed"
+                    ? "EXECUTED IN THIS BROWSER"
+                    : replay.status === "loading"
+                      ? "LOADING PYTHON…"
+                      : replay.status === "executing"
+                        ? "RUNNING THREE IMPLEMENTATIONS…"
+                        : "RECORDED RESULTS"}
+                </span>
               </header>
-              <label className="benchmark-input">
-                Input
-                <select
-                  value={probeIndex}
-                  onChange={(event) =>
-                    setProbeIndex(Number(event.target.value))
-                  }
-                >
-                  <option value={-1}>Counterexample</option>
-                  {item.probes.map((entry, index) => (
-                    <option key={index} value={index}>
-                      {renderCall(item, entry)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="benchmark-controls">
+                <label className="benchmark-input">
+                  Input
+                  <select
+                    value={probeIndex}
+                    onChange={(event) => {
+                      resetReplay();
+                      setProbeIndex(Number(event.target.value));
+                    }}
+                  >
+                    <option value={-1}>Counterexample</option>
+                    {item.probes.map((entry, index) => (
+                      <option key={index} value={index}>
+                        {renderCall(item, entry)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {busy ? (
+                  <button
+                    className="benchmark-run"
+                    type="button"
+                    onClick={resetReplay}
+                  >
+                    Cancel run
+                  </button>
+                ) : (
+                  <button
+                    className="benchmark-run"
+                    type="button"
+                    onClick={runReplay}
+                  >
+                    <Play size={14} aria-hidden="true" /> Run in Python
+                  </button>
+                )}
+              </div>
+              {replay.status === "failed" && (
+                <p className="benchmark-error" role="alert">
+                  Live replay could not finish. {replay.error}
+                </p>
+              )}
               <div className="benchmark-call">
                 <code>{renderCall(item, probe)}</code>
                 <span>
@@ -202,14 +304,17 @@ export default function Benchmarks() {
                   <thead>
                     <tr>
                       <th scope="col">Implementation</th>
-                      <th scope="col">Selected upstream tests</th>
+                      <th scope="col">Recorded upstream tests</th>
                       <th scope="col">Result for this input</th>
                     </tr>
                   </thead>
                   <tbody>
                     {roles.map((role) => {
                       const tests = item.ordinary[role];
-                      const result = probe.outcomes[role];
+                      const result =
+                        replay.status === "completed"
+                          ? replay.outcomes[role]
+                          : probe.outcomes[role];
                       const matches =
                         "value" in result &&
                         renderValue(result.value) ===
@@ -245,6 +350,16 @@ export default function Benchmarks() {
                   </tbody>
                 </table>
               </div>
+              <div className="benchmark-edit">
+                <span>One-line change from the official fix</span>
+                <pre>
+                  <code>
+                    <span className="outcome-fail">{`− ${item.alternative_edit.released}`}</span>
+                    {"\n"}
+                    <span>{`+ ${item.alternative_edit.replacement}`}</span>
+                  </code>
+                </pre>
+              </div>
             </section>
             <div className="benchmark-details">
               <section>
@@ -260,6 +375,14 @@ export default function Benchmarks() {
                   It passed on the official fix and failed on the previous
                   release and the controlled alternative.
                 </p>
+                <button
+                  className="benchmark-download"
+                  type="button"
+                  onClick={() => downloadTest(item)}
+                >
+                  <ArrowDownToLine size={17} aria-hidden="true" /> Download
+                  regression test
+                </button>
               </section>
               <section>
                 <h2>Reproduce the result</h2>
@@ -291,12 +414,6 @@ export default function Benchmarks() {
                       </li>
                     ))}
                   </ul>
-                </details>
-                <details>
-                  <summary>View the controlled edit</summary>
-                  <pre>
-                    <code>{`- ${item.alternative_edit.released}\n+ ${item.alternative_edit.replacement}`}</code>
-                  </pre>
                 </details>
                 <p>
                   <a href={repository + "/blob/main/docs/audit-a-change.md"}>

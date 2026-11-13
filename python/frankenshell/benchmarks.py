@@ -364,6 +364,7 @@ def main(argv=None):
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--cache", type=Path)
     parser.add_argument("--checkout-audit", type=Path, help="Also run and save the checkout verifier reports")
+    parser.add_argument("--browser-sources", type=Path, help="Package source for live browser replay")
     args = parser.parse_args(argv)
     try:
         with tempfile.TemporaryDirectory(prefix="frankenshell-upstream-") as directory:
@@ -373,6 +374,16 @@ def main(argv=None):
                 reproduce(case, cache, args.checkout_audit)
                 for case in CASES if not args.case or case.id == args.case
             ]
+            if args.browser_sources:
+                args.browser_sources.mkdir(parents=True, exist_ok=True)
+                for case in CASES:
+                    if args.case and case.id != args.case:
+                        continue
+                    _, sources, _ = read_case(case, cache)
+                    pack = {"function": case.function, "sources": sources}
+                    (args.browser_sources / f"{case.id}.json").write_text(
+                        json.dumps(pack) + "\n", encoding="utf-8", newline="\n",
+                    )
         args.out.mkdir(parents=True, exist_ok=True)
         (args.out / "benchmarks.json").write_text(
             json.dumps({"schema_version": 1, "cases": reports}, indent=2) + "\n",

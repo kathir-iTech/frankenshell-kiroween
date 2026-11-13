@@ -1,2 +1,4 @@
 /evidence/benchmarks.json text eol=lf
 /evidence/test_*_regression.py text eol=lf
+/evidence/browser-sources/*.json text eol=lf
+/docs/licenses/cpython/*.txt text eol=lf

@@ -1,8 +1,7 @@
 /// <reference lib="webworker" />
-export {};
+import { loadPython } from "./python-runtime";
 const scope = self as unknown as DedicatedWorkerGlobalScope;
-const base = new URL("./", scope.location.href);
-let runtime: any;
+let runtime: Awaited<ReturnType<typeof loadPython>> | undefined;
 let runner = "";
 scope.onmessage = async ({ data }) => {
   const { runId, pack, input, variants } = data;
@@ -11,16 +10,12 @@ scope.onmessage = async ({ data }) => {
   try {
     if (!runtime) {
       send("loading", "Loading Python runtime");
-      const runtimeUrl = new URL(
-        data.baseUrl + "runtime/pyodide.mjs",
-        scope.location.origin,
-      ).href;
-      const module = await import(/* @vite-ignore */ runtimeUrl);
-      runtime = await module.loadPyodide({
-        indexURL: new URL("./", runtimeUrl).href,
-      });
-      const response = await fetch(data.baseUrl + "runner.py");
+      const [python, response] = await Promise.all([
+        loadPython(data.baseUrl),
+        fetch(data.baseUrl + "runner.py"),
+      ]);
       if (!response.ok) throw new Error("Python runner could not be loaded");
+      runtime = python;
       runner = await response.text();
     }
     send("started", "Executing reviewed source");

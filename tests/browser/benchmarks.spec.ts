@@ -14,7 +14,9 @@ test("opens the benchmark, changes input, and downloads the verified regression"
   await expect(alternative).toContainText("5/5 pass");
   await expect(alternative).toContainText("Fails");
   await expect(alternative).toContainText("[7,7,7]");
-  await page.getByRole("combobox", { name: "Input", exact: true }).selectOption("0");
+  await page
+    .getByRole("combobox", { name: "Input", exact: true })
+    .selectOption("0");
   await expect(alternative).toContainText("Matches");
   const [download] = await Promise.all([
     page.waitForEvent("download"),
@@ -47,4 +49,66 @@ test("opens the benchmark, changes input, and downloads the verified regression"
   await expect(
     page.getByRole("heading", { name: "The Vanishing Order" }),
   ).toBeVisible();
+});
+
+test("runs the pinned implementations in Python and resets live status on input change", async ({
+  page,
+}) => {
+  await page.route("**/benchmarks.json", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.cases[0].witness.outcomes.alternative.value = [99];
+    await route.fulfill({ response, json: body });
+  });
+  await page.goto("./");
+  const alternative = page
+    .getByRole("row")
+    .filter({ hasText: "Controlled alternative" });
+  const official = page.getByRole("row").filter({ hasText: "Official fix" });
+  await expect(alternative).toContainText("[99]");
+  await page.getByRole("button", { name: "Run in Python" }).click();
+  await expect(page.getByRole("status")).toHaveText(
+    "EXECUTED IN THIS BROWSER",
+    { timeout: 75_000 },
+  );
+  await expect(alternative).toContainText("[7,7,7]");
+  await expect(official).toContainText("[7]");
+  await page
+    .getByRole("combobox", { name: "Input", exact: true })
+    .selectOption("0");
+  await expect(page.getByRole("status")).toHaveText("RECORDED RESULTS");
+  await expect(alternative).toContainText("Matches");
+  await page.getByRole("button", { name: "textwrap.dedent" }).click();
+  await page.getByRole("button", { name: "Run in Python" }).click();
+  await expect(page.getByRole("status")).toHaveText(
+    "EXECUTED IN THIS BROWSER",
+    { timeout: 75_000 },
+  );
+  await expect(alternative).toContainText("Fails");
+  await expect(official).toContainText("Matches");
+});
+
+test("preserves recorded evidence when live source fails to load", async ({
+  page,
+}) => {
+  await page.route("**/benchmark-sources/quantiles.json", (route) =>
+    route.abort(),
+  );
+  await page.goto("./");
+  await page.getByRole("button", { name: "Run in Python" }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Live replay could not finish",
+  );
+  await expect(page.getByRole("status")).toHaveText("RECORDED RESULTS");
+  await expect(
+    page.getByRole("button", { name: "Run in Python" }),
+  ).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Download regression test" }),
+  ).toBeEnabled();
+  await page.unroute("**/benchmark-sources/quantiles.json");
+  await page.getByRole("button", { name: "Run in Python" }).click();
+  await expect(page.getByRole("status")).toHaveText("EXECUTED IN THIS BROWSER", {
+    timeout: 75_000,
+  });
 });

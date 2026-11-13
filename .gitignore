@@ -3,6 +3,8 @@
 apps/web/public/runtime/
 apps/web/public/cases.json
 apps/web/public/benchmarks.json
+apps/web/public/benchmark-sources/
+apps/web/public/licenses/
 apps/web/public/runner.py
 apps/web/public/THIRD_PARTY_NOTICES.txt
 test-results/

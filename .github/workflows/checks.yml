@@ -14,8 +14,8 @@ jobs:
           python-version: '3.14'
       - run: npm ci
       - run: npm test
-      - run: python scripts/reproduce_benchmarks.py --out evidence --checkout-audit out/checkout-audits
-      - run: git diff --exit-code -- evidence/benchmarks.json evidence/test_quantiles_regression.py evidence/test_dedent_regression.py
+      - run: python scripts/reproduce_benchmarks.py --out evidence --checkout-audit out/checkout-audits --browser-sources evidence/browser-sources
+      - run: git diff --exit-code -- evidence/benchmarks.json evidence/test_quantiles_regression.py evidence/test_dedent_regression.py evidence/browser-sources
       - uses: actions/upload-artifact@v4
         with:
           name: cpython-regression-evidence
