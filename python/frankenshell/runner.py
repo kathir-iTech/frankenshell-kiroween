@@ -93,3 +93,47 @@ def run_pack(pack,data,variants=None):
     original=results.get('original')
     reproduced=original is not None and not original['passed']
     return {'schemaVersion':1,'caseId':pack['id'],'input':data,'candidateOrigin':'prepared','executionOrigin':'executed_now','failureReproduced':reproduced,'results':results,'verifiedCandidates':[v for v,r in results.items() if v!='original' and r['passed'] and reproduced]}
+
+
+def find_counterexample(pack, data):
+    """Search contract-specific mutations, then remove unnecessary rows."""
+    contract = pack.get("contractId", pack["id"])
+    validate_input(contract, data)
+    checked = 0
+
+    def fails(rows):
+        nonlocal checked
+        checked += 1
+        result = execute_variant(contract, pack["sources"]["shortcut"], rows)
+        return not result["passed"] and result["error"] is None
+
+    def variations():
+        yield data
+        for index, row in enumerate(data):
+            if contract == "vanishing-order":
+                for quantity in ("", "0", "1"):
+                    if quantity != row["quantity"]:
+                        yield data[:index] + [{**row, "quantity": quantity}] + data[index + 1:]
+            else:
+                # A repeated request exposes the shortcut's loss of reuse.
+                if len(data) < 100:
+                    yield data + [row]
+
+    witness = next((rows for rows in variations() if fails(rows)), None)
+    if witness is None:
+        raise ValueError(f"No counterexample found in {checked} inputs")
+
+    # Restart the pass after a successful deletion. A fixed budget keeps the UI responsive.
+    while len(witness) > 1 and checked < 384:
+        for index in range(len(witness)):
+            smaller = witness[:index] + witness[index + 1:]
+            if fails(smaller):
+                witness = smaller
+                break
+            if checked >= 384:
+                break
+        else:
+            break
+    report = run_pack(pack, witness)
+    report["search"] = {"inputsChecked": checked, "startingRows": len(data), "witnessRows": len(witness)}
+    return report

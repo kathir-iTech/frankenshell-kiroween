@@ -1432,3 +1432,13 @@ footer {
     scroll-behavior: auto !important;
   }
 }
+
+.search-button {
+  min-height: 45px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  font-size: 12px;
+}
+.run-actions {
+  flex-wrap: wrap;
+}

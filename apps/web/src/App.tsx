@@ -166,7 +166,7 @@ export default function App() {
     setVariant("shortcut");
     setTab("source");
   }
-  function run(compare: boolean) {
+  function run(compare: boolean, search = false) {
     if (!pack || busy) return;
     let data: unknown;
     try {
@@ -224,14 +224,17 @@ export default function App() {
         worker.current = null;
         setBusy(false);
         setReport(next);
+        if (next.search) setInput(pretty(next.input));
         setVariant(compare ? "shortcut" : "original");
         setTab("evidence");
         setPhase(
-          next.verifiedCandidates.length
-            ? "Repair verified for this test set"
-            : next.failureReproduced
-              ? "Failure reproduced"
-              : "Failure not reproduced with this input",
+          next.search
+            ? `Counterexample found: ${next.search.witnessRows} of ${next.search.startingRows} starting rows needed (${next.search.inputsChecked} inputs checked)`
+            : next.verifiedCandidates.length
+              ? "Repair verified for this test set"
+              : next.failureReproduced
+                ? "Failure reproduced"
+                : "Failure not reproduced with this input",
         );
         setHistory((previous) =>
           [
@@ -252,6 +255,7 @@ export default function App() {
       runId,
       pack,
       input: data,
+      search,
       variants: compare ? ["original", "shortcut", "corrected"] : ["original"],
       baseUrl: new URL(import.meta.env.BASE_URL, location.href).pathname,
     });
@@ -452,6 +456,13 @@ export default function App() {
                   <RotateCcw size={15} />
                 </button>
               )}
+              <button
+                className="search-button"
+                disabled={busy || !pack}
+                onClick={() => run(true, true)}
+              >
+                Find counterexample
+              </button>
               <button
                 className="run-button"
                 aria-label="Compare repairs"

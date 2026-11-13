@@ -37,4 +37,5 @@ export type Report = {
   failureReproduced: boolean;
   results: Partial<Record<Variant, Result>>;
   verifiedCandidates: Variant[];
+  search?: { inputsChecked: number; startingRows: number; witnessRows: number };
 };

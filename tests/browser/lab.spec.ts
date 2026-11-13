@@ -3,6 +3,26 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import JSZip from "jszip";
 
+test("finds a silent regression from an input where the quick fix works", async ({
+  page,
+}) => {
+  await page.goto("./");
+  await page.getByLabel("Row 2 quantity").fill("2");
+  await page.getByRole("button", { name: "Find counterexample" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "1 of 3 starting rows needed",
+    {
+      timeout: 65000,
+    },
+  );
+  await expect(
+    page.getByRole("button", { name: "Inspect Quick fix" }),
+  ).toContainText("Runs. But breaks the contract.");
+  await expect(
+    page.getByRole("button", { name: "Inspect Contract repair" }),
+  ).toContainText("Behavior preserved");
+});
+
 test("real Python comparison, changed input, export reproduction, reset and cache", async ({
   page,
 }, testInfo) => {

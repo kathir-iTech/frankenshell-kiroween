@@ -8,6 +8,12 @@ Run actual reviewed Python in your browser, compare an original and two prepared
 
 ## Run locally
 
+**Checking your own Python change?** Use the [local checkout verifier](docs/audit-a-change.md)
+to run the same generated inputs against two versions of a function. It reports newly
+introduced and resolved contract violations and saves an input you can replay in CI.
+On the hosted workbench, **Find counterexample** searches variations of the selected
+case and removes rows while the quick fix still fails.
+
 Requirements: Node.js 24+, Python 3.12+ (tested on Python 3.14), and a current browser with WebAssembly/module workers.
 
 ```powershell

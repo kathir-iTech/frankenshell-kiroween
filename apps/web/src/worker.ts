@@ -27,9 +27,11 @@ scope.onmessage = async ({ data }) => {
     runtime.globals.set("_pack_json", JSON.stringify(pack));
     runtime.globals.set("_input_json", JSON.stringify(input));
     runtime.globals.set("_variants_json", JSON.stringify(variants));
+    const expression = data.search
+      ? "find_counterexample(json.loads(_pack_json), json.loads(_input_json))"
+      : "run_pack(json.loads(_pack_json), json.loads(_input_json), json.loads(_variants_json))";
     const result = runtime.runPython(
-      runner +
-        "\njson.dumps(run_pack(json.loads(_pack_json), json.loads(_input_json), json.loads(_variants_json)), allow_nan=False)",
+      runner + "\njson.dumps(" + expression + ", allow_nan=False)",
     );
     send("completed", JSON.parse(result));
   } catch (error) {
