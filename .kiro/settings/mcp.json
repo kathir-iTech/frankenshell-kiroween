@@ -1,1 +1,1 @@
-{"mcpServers":{"frankenshell":{"command":"python","args":["scripts/mcp_stdio.py"],"disabled":false,"autoApprove":["list_cases","run_case","get_incident"]}}}
+{"mcpServers":{"frankenshell":{"command":"python","args":["scripts/mcp_stdio.py"],"disabled":false,"autoApprove":["list_cases","run_case","get_incident","get_benchmark"]}}}

@@ -14,6 +14,8 @@ jobs:
           python-version: '3.14'
       - run: npm ci
       - run: npm test
+      - run: python scripts/reproduce_benchmarks.py --out evidence
+      - run: git diff --exit-code -- evidence/benchmarks.json evidence/test_quantiles_regression.py evidence/test_dedent_regression.py
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser

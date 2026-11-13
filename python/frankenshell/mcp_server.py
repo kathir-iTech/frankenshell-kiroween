@@ -32,4 +32,15 @@ def get_incident(case_id: str) -> dict:
     if case_id not in REPORTS:raise ValueError('Run this case first')
     return REPORTS[case_id]
 
+
+@server.tool()
+def get_benchmark(case_id: str) -> dict:
+    """Read recorded CPython evidence for 'quantiles' or 'dedent', including the verified regression test."""
+    if case_id not in {"quantiles", "dedent"}:
+        raise ValueError("Unknown CPython benchmark")
+    report = json.loads((ROOT / "evidence" / "benchmarks.json").read_text(encoding="utf-8"))
+    case = next(item for item in report["cases"] if item["id"] == case_id)
+    return {"execution_origin": "recorded_run", **case}
+
+
 if __name__=='__main__':server.run(transport='stdio')

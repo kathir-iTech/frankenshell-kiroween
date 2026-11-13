@@ -6,6 +6,7 @@ cases=[json.loads(p.read_text(encoding='utf-8')) for p in sorted((root/'cases').
 cases.sort(key=lambda c: 0 if c['id']=='vanishing-order' else 1)
 (public/'cases.json').write_text(json.dumps(cases),encoding='utf-8')
 shutil.copyfile(root/'python/frankenshell/runner.py',public/'runner.py')
+shutil.copyfile(root/'evidence/benchmarks.json',public/'benchmarks.json')
 runtime=public/'runtime';runtime.mkdir(exist_ok=True)
 for name in ['pyodide.mjs','pyodide.asm.mjs','pyodide.asm.wasm','python_stdlib.zip','pyodide-lock.json']:
     shutil.copyfile(root/'node_modules/pyodide'/name,runtime/name)

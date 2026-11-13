@@ -330,6 +330,7 @@ export default function App() {
           <span>KIROWEEN / 2026</span>
         </div>
         <div className="header-right">
+          <a href={import.meta.env.BASE_URL}>CPython evidence</a>
           <span className="local-indicator" />
           <span>LOCAL EXECUTION</span>
           <div className="header-rule" />

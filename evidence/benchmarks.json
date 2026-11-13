@@ -1,0 +1,451 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "quantiles",
+      "title": "A fix that only works for quartiles",
+      "target": "statistics.quantiles",
+      "requirement": "QNT-001",
+      "description": "A singleton must produce n \u2212 1 cut points, each equal to the sample.",
+      "releases": [
+        "v3.12.0",
+        "v3.13.0"
+      ],
+      "test_release": "v3.13.0",
+      "test_class": "TestQuantiles",
+      "upstream": [
+        {
+          "url": "https://raw.githubusercontent.com/python/cpython/v3.12.0/Lib/statistics.py",
+          "sha256": "b9ef01a757de37e9fbf13d32beeb9530c8271582cabec4998226dcb7e0613cd0"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/python/cpython/v3.13.0/Lib/statistics.py",
+          "sha256": "0f618d7c13e99f5289d5e2a20ba8b7340be27ab424f2bffb739ab3be291fe261"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/python/cpython/v3.13.0/Lib/test/test_statistics.py",
+          "sha256": "539398683494ee4ec09d4f7844c395ef4371ce7b9da2f62068082876e4a2cc8e"
+        }
+      ],
+      "alternative_edit": {
+        "released": "return data * (n - 1)",
+        "replacement": "return data * 3"
+      },
+      "ordinary": {
+        "before": {
+          "passed": 4,
+          "total": 5,
+          "methods": [
+            "test_equal_inputs",
+            "test_equal_sized_groups",
+            "test_error_cases",
+            "test_specific_cases",
+            "test_specific_cases_inclusive"
+          ],
+          "failed_methods": [
+            "test_specific_cases_inclusive"
+          ]
+        },
+        "alternative": {
+          "passed": 5,
+          "total": 5,
+          "methods": [
+            "test_equal_inputs",
+            "test_equal_sized_groups",
+            "test_error_cases",
+            "test_specific_cases",
+            "test_specific_cases_inclusive"
+          ],
+          "failed_methods": []
+        },
+        "reference": {
+          "passed": 5,
+          "total": 5,
+          "methods": [
+            "test_equal_inputs",
+            "test_equal_sized_groups",
+            "test_error_cases",
+            "test_specific_cases",
+            "test_specific_cases_inclusive"
+          ],
+          "failed_methods": []
+        }
+      },
+      "probes": [
+        {
+          "args": [
+            [
+              7
+            ]
+          ],
+          "kwargs": {
+            "n": 4
+          },
+          "expected": [
+            7,
+            7,
+            7
+          ],
+          "outcomes": {
+            "before": {
+              "error": "StatisticsError",
+              "message": "must have at least two data points"
+            },
+            "alternative": {
+              "value": [
+                7,
+                7,
+                7
+              ]
+            },
+            "reference": {
+              "value": [
+                7,
+                7,
+                7
+              ]
+            }
+          }
+        },
+        {
+          "args": [
+            [
+              7
+            ]
+          ],
+          "kwargs": {
+            "n": 2
+          },
+          "expected": [
+            7
+          ],
+          "outcomes": {
+            "before": {
+              "error": "StatisticsError",
+              "message": "must have at least two data points"
+            },
+            "alternative": {
+              "value": [
+                7,
+                7,
+                7
+              ]
+            },
+            "reference": {
+              "value": [
+                7
+              ]
+            }
+          }
+        },
+        {
+          "args": [
+            [
+              7
+            ]
+          ],
+          "kwargs": {
+            "n": 1
+          },
+          "expected": [],
+          "outcomes": {
+            "before": {
+              "error": "StatisticsError",
+              "message": "must have at least two data points"
+            },
+            "alternative": {
+              "value": [
+                7,
+                7,
+                7
+              ]
+            },
+            "reference": {
+              "value": []
+            }
+          }
+        },
+        {
+          "args": [
+            [
+              7
+            ]
+          ],
+          "kwargs": {
+            "n": 5,
+            "method": "inclusive"
+          },
+          "expected": [
+            7,
+            7,
+            7,
+            7
+          ],
+          "outcomes": {
+            "before": {
+              "error": "StatisticsError",
+              "message": "must have at least two data points"
+            },
+            "alternative": {
+              "value": [
+                7,
+                7,
+                7
+              ]
+            },
+            "reference": {
+              "value": [
+                7,
+                7,
+                7,
+                7
+              ]
+            }
+          }
+        },
+        {
+          "args": [
+            [
+              1,
+              3
+            ]
+          ],
+          "kwargs": {
+            "n": 2
+          },
+          "expected": [
+            2.0
+          ],
+          "outcomes": {
+            "before": {
+              "value": [
+                2.0
+              ]
+            },
+            "alternative": {
+              "value": [
+                2.0
+              ]
+            },
+            "reference": {
+              "value": [
+                2.0
+              ]
+            }
+          }
+        }
+      ],
+      "witness": {
+        "args": [
+          [
+            7
+          ]
+        ],
+        "kwargs": {
+          "n": 2
+        },
+        "expected": [
+          7
+        ],
+        "outcomes": {
+          "before": {
+            "error": "StatisticsError",
+            "message": "must have at least two data points"
+          },
+          "alternative": {
+            "value": [
+              7,
+              7,
+              7
+            ]
+          },
+          "reference": {
+            "value": [
+              7
+            ]
+          }
+        }
+      },
+      "regression": {
+        "source": "\"\"\"Regression for QNT-001: A singleton must produce n \u2212 1 cut points, each equal to the sample.\"\"\"\nimport statistics\nimport unittest\n\n\nclass TestQuantilesRegression(unittest.TestCase):\n    def test_qnt_001(self):\n        self.assertEqual(statistics.quantiles([7], n=2), [7])\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n",
+        "verification": {
+          "before": false,
+          "alternative": false,
+          "reference": true
+        }
+      }
+    },
+    {
+      "id": "dedent",
+      "title": "A blank line that stops dedenting",
+      "target": "textwrap.dedent",
+      "requirement": "DDT-001",
+      "description": "A whitespace-only line must become empty and must not constrain the shared indentation.",
+      "releases": [
+        "v3.13.0",
+        "v3.14.0"
+      ],
+      "test_release": "v3.13.0",
+      "test_class": "DedentTestCase",
+      "upstream": [
+        {
+          "url": "https://raw.githubusercontent.com/python/cpython/v3.13.0/Lib/textwrap.py",
+          "sha256": "26836f5c17cdb4ffdeaff1a5146ed61a262aa410bdf3ad204e2bd0792f010d5e"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/python/cpython/v3.14.0/Lib/textwrap.py",
+          "sha256": "4da82de99528dd2877948632988fc85094b488540baed6e731367e570a6d9fc4"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/python/cpython/v3.13.0/Lib/test/test_textwrap.py",
+          "sha256": "72e5da91dbb14d19811eb3daf529abe62e7ccbab3bc3bb313fbe3cd08f4e9a0f"
+        }
+      ],
+      "alternative_edit": {
+        "released": "non_blank_lines = [l for l in lines if l and not l.isspace()]",
+        "replacement": "non_blank_lines = [l for l in lines if l.strip(' \\t')]"
+      },
+      "ordinary": {
+        "before": {
+          "passed": 6,
+          "total": 6,
+          "methods": [
+            "test_dedent_declining",
+            "test_dedent_even",
+            "test_dedent_nomargin",
+            "test_dedent_preserve_internal_tabs",
+            "test_dedent_preserve_margin_tabs",
+            "test_dedent_uneven"
+          ],
+          "failed_methods": []
+        },
+        "alternative": {
+          "passed": 6,
+          "total": 6,
+          "methods": [
+            "test_dedent_declining",
+            "test_dedent_even",
+            "test_dedent_nomargin",
+            "test_dedent_preserve_internal_tabs",
+            "test_dedent_preserve_margin_tabs",
+            "test_dedent_uneven"
+          ],
+          "failed_methods": []
+        },
+        "reference": {
+          "passed": 6,
+          "total": 6,
+          "methods": [
+            "test_dedent_declining",
+            "test_dedent_even",
+            "test_dedent_nomargin",
+            "test_dedent_preserve_internal_tabs",
+            "test_dedent_preserve_margin_tabs",
+            "test_dedent_uneven"
+          ],
+          "failed_methods": []
+        }
+      },
+      "probes": [
+        {
+          "args": [
+            "  a\n \t\n  b"
+          ],
+          "kwargs": {},
+          "expected": "a\n\nb",
+          "outcomes": {
+            "before": {
+              "value": "a\n\nb"
+            },
+            "alternative": {
+              "value": "a\n\nb"
+            },
+            "reference": {
+              "value": "a\n\nb"
+            }
+          }
+        },
+        {
+          "args": [
+            "  a\n\u00a0\n  b"
+          ],
+          "kwargs": {},
+          "expected": "a\n\nb",
+          "outcomes": {
+            "before": {
+              "value": "  a\n\u00a0\n  b"
+            },
+            "alternative": {
+              "value": "  a\n\n  b"
+            },
+            "reference": {
+              "value": "a\n\nb"
+            }
+          }
+        },
+        {
+          "args": [
+            "  a\n\u000b\n  b"
+          ],
+          "kwargs": {},
+          "expected": "a\n\nb",
+          "outcomes": {
+            "before": {
+              "value": "  a\n\u000b\n  b"
+            },
+            "alternative": {
+              "value": "  a\n\n  b"
+            },
+            "reference": {
+              "value": "a\n\nb"
+            }
+          }
+        },
+        {
+          "args": [
+            "  a\n    b\n"
+          ],
+          "kwargs": {},
+          "expected": "a\n  b\n",
+          "outcomes": {
+            "before": {
+              "value": "a\n  b\n"
+            },
+            "alternative": {
+              "value": "a\n  b\n"
+            },
+            "reference": {
+              "value": "a\n  b\n"
+            }
+          }
+        }
+      ],
+      "witness": {
+        "args": [
+          "  a\n\u00a0\n  b"
+        ],
+        "kwargs": {},
+        "expected": "a\n\nb",
+        "outcomes": {
+          "before": {
+            "value": "  a\n\u00a0\n  b"
+          },
+          "alternative": {
+            "value": "  a\n\n  b"
+          },
+          "reference": {
+            "value": "a\n\nb"
+          }
+        }
+      },
+      "regression": {
+        "source": "\"\"\"Regression for DDT-001: A whitespace-only line must become empty and must not constrain the shared indentation.\"\"\"\nimport textwrap\nimport unittest\n\n\nclass DedentTestCaseRegression(unittest.TestCase):\n    def test_ddt_001(self):\n        self.assertEqual(textwrap.dedent('  a\\n\\xa0\\n  b'), 'a\\n\\nb')\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n",
+        "verification": {
+          "before": false,
+          "alternative": false,
+          "reference": true
+        }
+      }
+    }
+  ]
+}

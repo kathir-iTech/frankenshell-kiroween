@@ -1,17 +1,34 @@
-# FrankenShell — The Resurrection Lab
+# FrankenShell
 
-A personal Kiroween 2026 project exploring a simple question: did a repair preserve the program's behavior, or only remove its error?
+A Python patch verifier for maintainers who need to check what a change does on inputs their tests missed. Built for Kiroween 2026 in the Frankenstein category.
 
-Run actual reviewed Python in your browser, compare an original and two prepared repairs, inspect independent checks and counterexamples, and export a bundle that reruns in local Python. No account or model API is required by the public examples.
+The hosted workbench opens with two recorded CPython experiments. Each compares a previous release, an official fix, and a controlled one-line alternative. The alternatives pass the selected upstream test classes. FrankenShell records an input that exposes each difference and produces a plain Python regression test verified against all three versions.
 
 [Open the hosted workbench](https://kathir-itech.github.io/frankenshell-kiroween/)
+
+## Reproduce the CPython experiments
+
+From this checkout with Python 3.14:
+
+```sh
+python scripts/reproduce_benchmarks.py --out out
+```
+
+The script fetches six tagged CPython files from GitHub, verifies their SHA-256 hashes, runs the selected upstream test classes, and verifies the generated regression tests in separate processes. `--case quantiles` or `--case dedent` runs one experiment. `--cache PATH` reuses verified downloads.
+
+| Case | Selected upstream tests on alternative | Counterexample |
+| --- | --- | --- |
+| [`statistics.quantiles`](https://docs.python.org/3.13/library/statistics.html#statistics.quantiles) | 5/5 from `TestQuantiles`, CPython v3.13.0 | `quantiles([7], n=2)` returned `[7, 7, 7]` with the alternative. The official fix returned `[7]`. |
+| [`textwrap.dedent`](https://docs.python.org/3.14/library/textwrap.html#textwrap.dedent) | 6/6 from `DedentTestCase`, CPython v3.13.0 | A line with a non-breaking space kept the surrounding text indented with the alternative. The official fix normalized the blank line and removed the shared indent. |
+
+Both are historical releases. The experiment supplies the alternatives and executes the named upstream classes. The repository includes the report and exported regression tests in [evidence](evidence/). CPython source is fetched at reproduction time. See the [third-party notices](docs/third-party-notices.md).
 
 ## Run locally
 
 **Checking your own Python change?** Use the [local checkout verifier](docs/audit-a-change.md)
 to run the same generated inputs against two versions of a function. It reports newly
 introduced and resolved contract violations and saves an input you can replay in CI.
-On the hosted workbench, **Find counterexample** searches variations of the selected
+In the browser's **Interactive lab**, **Find counterexample** searches variations of the selected
 case and removes rows while the quick fix still fails.
 
 Requirements: Node.js 24+, Python 3.12+ (tested on Python 3.14), and a current browser with WebAssembly/module workers.
@@ -56,11 +73,13 @@ python scripts/test_mcp.py
 kiro-cli chat --v3 --trust-workspace --agent lab-review
 ```
 
-The MCP-only profile exposes `list_cases`, `run_case`, and `get_incident`. The SessionStart hook runs `scripts/check_cases.py`, requiring corrected candidates to pass and known shortcut regressions to fail. See the integration evidence for observed Kiro invocation results. No arbitrary shell-execution tool is exposed by the lab server.
+The MCP-only profile exposes `list_cases`, `run_case`, `get_incident`, and `get_benchmark`. The SessionStart hook runs `scripts/check_cases.py`, requiring corrected candidates to pass and known shortcut regressions to fail. The [CPython bugfix spec](.kiro/specs/cpython-quantiles/bugfix.md) records how Kiro's requirement draft was checked against the tagged source. The benchmark tool reads the recorded CI-reproducible evidence.
+
+The [recorded Kiro benchmark review](evidence/KIRO_BENCHMARK_REVIEW.md) documents the CLI invocation and observed results.
 
 ## Evidence and boundaries
 
-Public examples execute prepared repair source now; they do not generate a new AI repair live. A recorded history entry is labeled. Passing finite checks establishes behavior for the declared input and contract, not universal correctness.
+The CPython page displays recorded benchmark runs. The interactive lab executes its prepared repair source in browser Python. Passing finite checks establishes behavior for the declared input and contract.
 
 Browser execution is for reviewed bundled source. Local commands and downloaded verifiers execute trusted Python and are not OS sandboxes. Review source before running a third-party pack. Hashes check against a supplied manifest; they do not certify an author or SLSA level. This release includes the browser workbench and its local verifier.
 
