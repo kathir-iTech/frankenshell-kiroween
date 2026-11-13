@@ -27,6 +27,11 @@ def bounded(config, key, default, maximum, kind=int):
 
 
 def git_identity(root, timeout):
+    # Worktrees and repositories both have a .git marker. Source-only
+    # directories have no Git metadata to collect.
+    if not any((directory / ".git").exists() for directory in (root, *root.parents)):
+        timeout()
+        return None
     git = shutil.which("git")
     if not git:
         return None
