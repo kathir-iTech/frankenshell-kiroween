@@ -299,6 +299,8 @@ def audit_checkouts(case, output, sources, tests, ordinary, probes, witness):
         (root / "contract.py").write_text(contract, encoding="utf-8", newline="\n")
         config = {
             "schema_version": 1, "target": "adapter:evaluate", "contract": "contract.py",
+            "display_target": f"{case.module}.{case.function}",
+            "rule_descriptions": {case.requirement: case.description},
             "source_files": ["reviewed_source.py"], "cases": len(inputs), "timeout": 15,
             "unittest": {"directory": "suite", "pattern": "test_upstream.py"},
             "checkouts": {"baseline": "before", "candidate": "reference", "shortcut": "alternative"},

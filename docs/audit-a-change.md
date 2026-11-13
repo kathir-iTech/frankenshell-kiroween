@@ -10,6 +10,8 @@ Save this as `audit-config.json` in a directory of your choice. Paths are relati
 {
   "schema_version": 1,
   "target": "invoice:total",
+  "display_target": "Invoice total",
+  "rule_descriptions": {"incorrect_total": "A blank quantity means one. An explicit zero stays zero."},
   "contract": "invoice_contract.py",
   "checkouts": {
     "baseline": "before",
@@ -26,6 +28,8 @@ Save this as `audit-config.json` in a directory of your choice. Paths are relati
 ```
 
 In this example, `before`, `fix`, and `quick-fix` each contain their own `invoice.py`. Up to three named alternatives can be included.
+
+`display_target` and `rule_descriptions` are optional. They give reviewers the public function name or a descriptive label and the meaning of each contract rule in the web report. Use the same rule IDs returned by `check()`.
 
 To try it with a small fixture, put one of these functions in each directory:
 

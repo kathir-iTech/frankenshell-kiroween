@@ -69,10 +69,23 @@ def configure(path):
     if type(data.get("schema_version")) is not int or data["schema_version"] != 1:
         raise ValueError("Expected config schema_version 1")
     valid_keys = {"schema_version", "target", "contract", "checkouts", "seed",
-                  "cases", "timeout", "budget_seconds", "unittest", "source_files"}
+                  "cases", "timeout", "budget_seconds", "unittest", "source_files",
+                  "display_target", "rule_descriptions"}
     unknown = sorted(data.keys() - valid_keys)
     if unknown:
         raise ValueError(f"Unknown config field(s): {', '.join(unknown)}")
+    label = data.get("display_target")
+    if "display_target" in data and (
+        not isinstance(label, str) or not label.strip() or len(label) > 160
+    ):
+        raise ValueError("display_target must be a nonempty string up to 160 characters")
+    descriptions = data.get("rule_descriptions", {})
+    if not isinstance(descriptions, dict) or len(descriptions) > 64 or any(
+        not rule.strip() or len(rule) > 128 or not isinstance(description, str)
+        or not description.strip() or len(description) > 500
+        for rule, description in descriptions.items()
+    ):
+        raise ValueError("rule_descriptions must map up to 64 rule IDs to nonempty descriptions")
     if "unittest" in data and (
         not isinstance(data["unittest"], dict) or data["unittest"].keys() - {"directory", "pattern"}
     ):
@@ -183,6 +196,9 @@ def run(path, replay=None):
                      for name, value in checkouts.items()}
         report.update(target=target, contract={"sha256": contract_hash}, revisions=revisions,
                       seed=None if replay else data.get("seed", 2026), replay=bool(replay))
+        for field in ("display_target", "rule_descriptions"):
+            if field in data:
+                report[field] = data[field]
         if replay:
             cases = [replay_input(replay, target, contract_hash)]
         contract = runpy.run_path(str(contract_path))

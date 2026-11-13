@@ -105,7 +105,9 @@ export default function AuditWorkspace() {
           <section className="audit-results" aria-labelledby="audit-title">
             <header>
               <div>
-                <h2 id="audit-title">{report.target ?? "Checkout audit"}</h2>
+                <h2 id="audit-title">
+                  {report.displayTarget ?? "Checkout audit"}
+                </h2>
                 <p className="benchmark-meta">{opened.name}</p>
               </div>
               <p role="status">
@@ -188,7 +190,11 @@ export default function AuditWorkspace() {
                         {isRecord(outcome.error) ? (
                           <p>
                             <strong>Raised</strong>{" "}
-                            <code>{typeof outcome.error.type === "string" ? outcome.error.type : "Error"}</code>
+                            <code>
+                              {typeof outcome.error.type === "string"
+                                ? outcome.error.type
+                                : "Error"}
+                            </code>
                             {typeof outcome.error.message === "string" && (
                               <> · {outcome.error.message}</>
                             )}
@@ -205,6 +211,9 @@ export default function AuditWorkspace() {
                                 ? "Execution raised an exception"
                                 : rule}
                             </h5>
+                            {report.ruleDescriptions.has(rule) && (
+                              <p>{report.ruleDescriptions.get(rule)}</p>
+                            )}
                             {isRecord(detail) &&
                             Object.hasOwn(detail, "expected") &&
                             Object.hasOwn(detail, "actual") ? (
@@ -238,9 +247,15 @@ export default function AuditWorkspace() {
                 This report contains no counterexample.
               </p>
             )}
-            {report.rows.some((row) => row.commit || row.modulePath) && (
+            {(report.displayTarget !== report.target ||
+              report.rows.some((row) => row.commit || row.modulePath)) && (
               <details className="audit-witness">
                 <summary>Source and Git revisions</summary>
+                {report.displayTarget !== report.target && (
+                  <p>
+                    CLI target <code>{report.target}</code>
+                  </p>
+                )}
                 {report.rows.map((row) => (
                   <p key={row.name}>
                     <strong>{row.name}</strong>

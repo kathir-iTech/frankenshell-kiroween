@@ -110,6 +110,20 @@ export function parseAuditReport(text: string) {
   return {
     status,
     target: data.target,
+    displayTarget:
+      typeof data.display_target === "string" && data.display_target.trim()
+        ? data.display_target
+        : data.target,
+    ruleDescriptions: new Map(
+      isObject(data.rule_descriptions)
+        ? Object.entries(data.rule_descriptions).flatMap(
+            ([rule, description]) =>
+              typeof description === "string"
+                ? [[rule, description] as const]
+                : [],
+          )
+        : [],
+    ),
     error: data.error,
     inputsChecked,
     rows,

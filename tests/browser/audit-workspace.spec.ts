@@ -26,6 +26,8 @@ test("opens a real checkout report and keeps the comparison after an invalid imp
     JSON.stringify({
       schema_version: 1,
       target: "invoice:total",
+      display_target: "Invoice total",
+      rule_descriptions: { preserve_zero: "An explicit zero must stay zero." },
       contract: "contract.py",
       checkouts: { baseline: "baseline", candidate: "candidate" },
       cases: 1,
@@ -52,7 +54,7 @@ test("opens a real checkout report and keeps the comparison after an invalid imp
   });
   await expect(page.getByRole("status")).toContainText("Candidate failed");
   await expect(
-    page.getByRole("heading", { name: "invoice:total" }),
+    page.getByRole("heading", { name: "Invoice total" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Counterexample" }),
@@ -61,6 +63,9 @@ test("opens a real checkout report and keeps the comparison after an invalid imp
     page.getByRole("heading", { name: "preserve_zero" }),
   ).toBeVisible();
   await expect(page.getByText("Expected", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("An explicit zero must stay zero."),
+  ).toBeVisible();
   await expect(page.getByText("Actual", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
     390,
