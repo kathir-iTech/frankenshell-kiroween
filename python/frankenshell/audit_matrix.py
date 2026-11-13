@@ -156,7 +156,7 @@ def print_report(report, output_format):
         print(f"Audit incomplete: {error}")
 
 
-def main(path, replay, output_format):
+def run(path, replay=None):
     started = time.monotonic()
     report = {"schema_version": 2, "status": "inconclusive", "inputs_checked": 0,
               "witness": None, "python": platform.python_version()}
@@ -266,5 +266,10 @@ def main(path, replay, output_format):
     except Exception as exc:
         report["error"] = f"{stage}: {exc}"
     report["elapsed_seconds"] = round(time.monotonic() - started, 3)
+    return report
+
+
+def main(path, replay, output_format):
+    report = run(path, replay)
     print_report(report, output_format)
     return {"passed": 0, "failed": 1, "inconclusive": 2}[report["status"]]

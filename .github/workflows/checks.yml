@@ -14,7 +14,7 @@ jobs:
           python-version: '3.14'
       - run: npm ci
       - run: npm test
-      - run: python scripts/reproduce_benchmarks.py --out evidence
+      - run: python scripts/reproduce_benchmarks.py --out evidence --checkout-audit out/checkout-audits
       - run: git diff --exit-code -- evidence/benchmarks.json evidence/test_quantiles_regression.py evidence/test_dedent_regression.py
       - uses: actions/upload-artifact@v4
         with:
@@ -23,6 +23,8 @@ jobs:
             evidence/benchmarks.json
             evidence/test_quantiles_regression.py
             evidence/test_dedent_regression.py
+            out/checkout-audits/quantiles.json
+            out/checkout-audits/dedent.json
           if-no-files-found: error
       - run: npm run build
       - run: npx playwright install --with-deps chromium

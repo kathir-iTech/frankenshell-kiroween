@@ -16,6 +16,14 @@ python scripts/reproduce_benchmarks.py --out out
 
 The script fetches six tagged CPython files from GitHub, verifies their SHA-256 hashes, runs the selected upstream test classes, and verifies the generated regression tests in separate processes. `--case quantiles` or `--case dedent` runs one experiment. `--cache PATH` reuses verified downloads.
 
+To run the same two cases through the [maintainer's checkout verifier](docs/audit-a-change.md):
+
+```sh
+python scripts/reproduce_benchmarks.py --out out --checkout-audit out/checkout-audits
+```
+
+This reconstructs each revision in a temporary source directory, checks the shared test results and the counterexample against the benchmark, and replays the counterexample from the report. It also promotes each shortcut to candidate and verifies that the contract rejects it while its shared tests pass. The official fixes pass a separate control without a flagged input. CI uploads both audit reports with the regression tests as `cpython-regression-evidence`.
+
 | Case | Selected upstream tests on alternative | Counterexample |
 | --- | --- | --- |
 | [`statistics.quantiles`](https://docs.python.org/3.13/library/statistics.html#statistics.quantiles) | 5/5 from `TestQuantiles`, CPython v3.13.0 | `quantiles([7], n=2)` returned `[7, 7, 7]` with the alternative. The official fix returned `[7]`. |

@@ -19,6 +19,8 @@ from types import ModuleType
 import unittest
 from urllib.request import urlopen
 
+from . import audit_matrix
+
 
 @dataclass(frozen=True)
 class Case:
@@ -201,7 +203,7 @@ def verify_export(case, test, sources):
     return statuses
 
 
-def reproduce(case, cache):
+def read_case(case, cache):
     filename = case.module + ".py"
     paths = [case.upstream_url(version, filename) for version in case.versions]
     paths.append(case.upstream_url(case.test_version, f"test/test_{case.module}.py"))
@@ -212,6 +214,11 @@ def reproduce(case, cache):
     if reference.count(old) != 1:
         raise ValueError(f"{case.id}: expected exactly one edit location")
     sources = {"before": before, "alternative": reference.replace(old, new, 1), "reference": reference}
+    return paths, sources, tests
+
+
+def reproduce(case, cache, checkout_dir=None):
+    paths, sources, tests = read_case(case, cache)
     modules = {role: load_module(case.module, source) for role, source in sources.items()}
     tree = ast.parse(tests)
     ordinary = {role: suite_result(tree, case, module) for role, module in modules.items()}
@@ -236,6 +243,9 @@ def reproduce(case, cache):
     verification = verify_export(case, test, sources)
     if verification != {"before": False, "alternative": False, "reference": True}:
         raise ValueError(f"{case.id}: regression export did not distinguish the three revisions")
+    if checkout_dir is not None:
+        audit_checkouts(case, checkout_dir, sources, tests, ordinary, probes, witness)
+    old, new = case.edit
     return {
         "id": case.id, "title": case.title, "target": f"{case.module}.{case.function}",
         "requirement": case.requirement, "description": case.description,
@@ -247,17 +257,122 @@ def reproduce(case, cache):
     }
 
 
+def audit_checkouts(case, output, sources, tests, ordinary, probes, witness):
+    with tempfile.TemporaryDirectory(prefix=f"frankenshell-{case.id}-") as directory:
+        root = Path(directory)
+        adapter = (
+            f"from reviewed_source import {case.function}\n\n"
+            f"def evaluate(case):\n    return {case.function}(*case['args'], **case['kwargs'])\n"
+        )
+        for role, source in sources.items():
+            folder = root / role
+            folder.mkdir()
+            (folder / "reviewed_source.py").write_text(source, encoding="utf-8", newline="\n")
+            (folder / "adapter.py").write_text(adapter, encoding="utf-8", newline="\n")
+
+        suite = root / "suite"
+        suite.mkdir()
+        test_class = next(node for node in ast.parse(tests).body
+                          if isinstance(node, ast.ClassDef) and node.name == case.test_class)
+        imports = (
+            "import bisect, math, random, unittest\n"
+            "from decimal import Decimal\nfrom fractions import Fraction\n"
+            f"import reviewed_source as {case.module}\n"
+            f"from reviewed_source import {case.function}\n"
+            "random.seed(2026)\n\n"
+        )
+        (suite / "test_upstream.py").write_text(
+            imports + ast.get_source_segment(tests, test_class) + "\n",
+            encoding="utf-8", newline="\n",
+        )
+        inputs = [{"args": list(probe["args"]), "kwargs": probe["kwargs"]} for probe in probes]
+        expectations = [probe["expected"] for probe in probes]
+        contract = (
+            f"INPUTS = {inputs!r}\n"
+            f"EXPECTED = {expectations!r}\n\n"
+            "def generate(rng, index):\n    return INPUTS[index]\n\n"
+            "def check(case, actual):\n"
+            "    expected = EXPECTED[INPUTS.index(case)]\n"
+            f"    return {{}} if actual == expected else {{{case.requirement!r}:"
+            " {'expected': expected, 'actual': actual}}\n"
+        )
+        (root / "contract.py").write_text(contract, encoding="utf-8", newline="\n")
+        config = {
+            "schema_version": 1, "target": "adapter:evaluate", "contract": "contract.py",
+            "source_files": ["reviewed_source.py"], "cases": len(inputs), "timeout": 15,
+            "unittest": {"directory": "suite", "pattern": "test_upstream.py"},
+            "checkouts": {"baseline": "before", "candidate": "reference", "shortcut": "alternative"},
+        }
+        path = root / "audit.json"
+        path.write_text(json.dumps(config), encoding="utf-8")
+        report = audit_matrix.run(path)
+        if report["status"] != "passed":
+            raise ValueError(f"{case.id}: checkout audit {report['status']}: {report.get('error', report['witness'])}")
+        if not report["witness"] or report["witness"]["confirmation"] != "reproduced":
+            raise ValueError(f"{case.id}: checkout audit did not reproduce a witness")
+        found = report["witness"]
+        if found["input"] != {"args": list(witness["args"]), "kwargs": witness["kwargs"]}:
+            raise ValueError(f"{case.id}: checkout audit found a different witness")
+
+        for name, role in config["checkouts"].items():
+            revision = report["revisions"][name]
+            tests_run = revision["unittest"]
+            methods = [method.rsplit(".", 1)[-1] for method in tests_run["methods"]]
+            failed = [method.rsplit(".", 1)[-1] for method in
+                      [*tests_run["failed"], *tests_run["errors"]]]
+            actual = found["results"][name]["outcome"]
+            expected = witness["outcomes"][role]
+            normalized = {"value": actual["output"]} if "output" in actual else {
+                "error": actual["error"]["type"], "message": actual["error"]["message"],
+            }
+            if (sorted(methods) != sorted(ordinary[role]["methods"])
+                    or sorted(failed) != sorted(ordinary[role]["failed_methods"])
+                    or tests_run["skipped"]
+                    or normalized != expected):
+                raise ValueError(f"{case.id}: checkout audit disagrees with benchmark for {name}")
+
+        replay_path = root / "report.json"
+        replay_path.write_text(json.dumps(report), encoding="utf-8")
+        replay = audit_matrix.run(path, replay_path)
+        if replay["status"] != "passed" or replay["witness"] != found or replay["inputs_checked"] != 1:
+            raise ValueError(f"{case.id}: checkout witness could not be replayed")
+
+        config["checkouts"] = {"baseline": "before", "candidate": "alternative"}
+        path.write_text(json.dumps(config), encoding="utf-8")
+        rejected = audit_matrix.run(path, replay_path)
+        if (rejected["status"] != "failed" or not rejected["revisions"]["candidate"]["unittest"]["passed"]
+                or case.requirement not in rejected["witness"]["results"]["candidate"]["violations"]):
+            raise ValueError(f"{case.id}: expected the contract to reject the shortcut as candidate")
+
+        config["checkouts"] = {"baseline": "before", "candidate": "reference"}
+        path.write_text(json.dumps(config), encoding="utf-8")
+        control = audit_matrix.run(path)
+        if control["status"] != "passed" or control["witness"] is not None:
+            raise ValueError(f"{case.id}: the official fix failed the control")
+
+    output.mkdir(parents=True, exist_ok=True)
+    (output / f"{case.id}.json").write_text(
+        json.dumps({"audit": report, "replay": replay, "shortcut_as_candidate": rejected,
+                    "official_fix_control": control}, indent=2, allow_nan=False) + "\n",
+        encoding="utf-8", newline="\n",
+    )
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--case", choices=[case.id for case in CASES])
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--cache", type=Path)
+    parser.add_argument("--checkout-audit", type=Path, help="Also run and save the checkout verifier reports")
     args = parser.parse_args(argv)
     try:
         with tempfile.TemporaryDirectory(prefix="frankenshell-upstream-") as directory:
             cache = args.cache or Path(directory)
             cache.mkdir(parents=True, exist_ok=True)
-            reports = [reproduce(case, cache) for case in CASES if not args.case or case.id == args.case]
+            reports = [
+                reproduce(case, cache, args.checkout_audit)
+                for case in CASES if not args.case or case.id == args.case
+            ]
         args.out.mkdir(parents=True, exist_ok=True)
         (args.out / "benchmarks.json").write_text(
             json.dumps({"schema_version": 1, "cases": reports}, indent=2) + "\n",
@@ -269,6 +384,8 @@ def main(argv=None):
             )
             print(f"{report['target']}: {report['ordinary']['alternative']['passed']} upstream "
                   f"methods passed on the alternative; exported test rejects it.")
+        if args.checkout_audit:
+            print("Checkout audits, witness replays, and candidate controls verified.")
     except Exception as exc:
         print(f"Benchmark could not complete: {exc}", file=sys.stderr)
         return 2
