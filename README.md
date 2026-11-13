@@ -6,6 +6,8 @@ The hosted workbench opens with two recorded CPython experiments. Each compares 
 
 [Open the hosted workbench](https://kathir-itech.github.io/frankenshell-kiroween/)
 
+Run the [checkout verifier](docs/audit-a-change.md) on trusted local Python code. Open its schema v2 JSON in the web workspace to compare results and inspect the exact counterexample. The workspace reads the report locally in the browser.
+
 ## Reproduce the CPython experiments
 
 From this checkout with Python 3.14:

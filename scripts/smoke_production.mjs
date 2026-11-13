@@ -4,6 +4,7 @@ try{
  const page=await browser.newPage({viewport:{width:1440,height:1100}});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(process.argv[2]??'http://127.0.0.1:4173');
+ await page.getByRole('navigation',{name:'Project'}).getByRole('link',{name:'CPython cases'}).click();
  await page.getByRole('heading',{name:'A fix that only works for quartiles'}).waitFor();
  const alternative=page.getByRole('row').filter({hasText:'Controlled alternative'});
  await alternative.getByText('5/5 pass',{exact:true}).waitFor();

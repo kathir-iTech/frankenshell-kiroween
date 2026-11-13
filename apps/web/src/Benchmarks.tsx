@@ -194,6 +194,7 @@ export default function Benchmarks() {
           FRANKEN<span>/</span>SHELL
         </a>
         <nav aria-label="Project">
+          <a href={import.meta.env.BASE_URL}>Audit workspace</a>
           <a href="?view=lab">Interactive lab</a>
           <a href={repository}>
             Source <ArrowUpRight size={13} aria-hidden="true" />

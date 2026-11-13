@@ -4,7 +4,7 @@ import { test, expect } from "@playwright/test";
 test("opens the benchmark, changes input, and downloads the verified regression", async ({
   page,
 }, testInfo) => {
-  await page.goto("./");
+  await page.goto("./?view=benchmarks");
   await expect(
     page.getByRole("heading", { name: "A fix that only works for quartiles" }),
   ).toBeVisible();
@@ -60,7 +60,7 @@ test("runs the pinned implementations in Python and resets live status on input 
     body.cases[0].witness.outcomes.alternative.value = [99];
     await route.fulfill({ response, json: body });
   });
-  await page.goto("./");
+  await page.goto("./?view=benchmarks");
   const alternative = page
     .getByRole("row")
     .filter({ hasText: "Controlled alternative" });
@@ -94,7 +94,7 @@ test("preserves recorded evidence when live source fails to load", async ({
   await page.route("**/benchmark-sources/quantiles.json", (route) =>
     route.abort(),
   );
-  await page.goto("./");
+  await page.goto("./?view=benchmarks");
   await page.getByRole("button", { name: "Run in Python" }).click();
   await expect(page.getByRole("alert")).toContainText(
     "Live replay could not finish",

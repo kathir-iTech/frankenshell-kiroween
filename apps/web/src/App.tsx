@@ -330,7 +330,8 @@ export default function App() {
           <span>KIROWEEN / 2026</span>
         </div>
         <div className="header-right">
-          <a href={import.meta.env.BASE_URL}>CPython evidence</a>
+          <a href={import.meta.env.BASE_URL}>Audit workspace</a>
+          <a href="?view=benchmarks">CPython evidence</a>
           <span className="local-indicator" />
           <span>LOCAL EXECUTION</span>
           <div className="header-rule" />
@@ -529,8 +530,8 @@ export default function App() {
                 <h2>Start with the data.</h2>
                 <p>
                   {caseId === "vanishing-order"
-                    ? "One blank quantity. Three orders to preserve."
-                    : "One key. Two configurations. Three requests."}
+                    ? "Compare the output with the orders in the current input."
+                    : "Compare reuse and invalidation for the current requests."}
                 </p>
               </div>
               <div className="input-format">

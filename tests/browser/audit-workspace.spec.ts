@@ -1,0 +1,75 @@
+import { spawnSync } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { test, expect } from "@playwright/test";
+
+test("opens a real checkout report and keeps the comparison after an invalid import", async ({
+  page,
+}, info) => {
+  const root = info.outputPath("checkouts");
+  const source = {
+    baseline: "def total(value): return value\n",
+    candidate: "def total(value): return value or 10\n",
+  };
+  for (const [role, content] of Object.entries(source)) {
+    mkdirSync(join(root, role), { recursive: true });
+    writeFileSync(join(root, role, "invoice.py"), content);
+  }
+  writeFileSync(
+    join(root, "contract.py"),
+    "def generate(rng, index): return 0\n" +
+      "def check(value, output): return {} if value == output else {'preserve_zero': {'expected': value, 'actual': output}}\n",
+  );
+  const config = join(root, "config.json");
+  writeFileSync(
+    config,
+    JSON.stringify({
+      schema_version: 1,
+      target: "invoice:total",
+      contract: "contract.py",
+      checkouts: { baseline: "baseline", candidate: "candidate" },
+      cases: 1,
+      timeout: 15,
+    }),
+  );
+  const audit = spawnSync(
+    "python",
+    ["scripts/audit_repair.py", "--config", config],
+    { encoding: "utf8", timeout: 30_000 },
+  );
+  expect(audit.status, audit.stderr || audit.stdout).toBe(1);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("./");
+  await expect(
+    page.getByRole("heading", { name: "Review a Python patch" }),
+  ).toBeVisible();
+  const input = page.getByLabel("Choose audit JSON");
+  await input.setInputFiles({
+    name: "invoice-audit.json",
+    mimeType: "application/json",
+    buffer: Buffer.from("\uFEFF" + audit.stdout),
+  });
+  await expect(page.getByRole("status")).toContainText("Candidate failed");
+  await expect(
+    page.getByRole("heading", { name: "invoice:total" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Counterexample" }),
+  ).toBeVisible();
+  await expect(page.getByText(/"preserve_zero"/)).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    390,
+  );
+  await input.setInputFiles({
+    name: "broken.json",
+    mimeType: "application/json",
+    buffer: Buffer.from("{"),
+  });
+  await expect(page.getByRole("alert")).toContainText("valid JSON");
+  await expect(page.getByRole("status")).toContainText("Candidate failed");
+  await page.getByRole("link", { name: "CPython cases", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "A fix that only works for quartiles" }),
+  ).toBeVisible();
+});

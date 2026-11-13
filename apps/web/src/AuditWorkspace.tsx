@@ -1,0 +1,215 @@
+import { useRef, useState } from "react";
+import { ArrowUpRight, FileJson } from "lucide-react";
+import { maxReportBytes, parseAuditReport } from "./audit-report";
+import "./benchmarks.css";
+import "./audit-workspace.css";
+
+const guide =
+  "https://github.com/kathir-iTech/frankenshell-kiroween/blob/main/docs/audit-a-change.md";
+const command =
+  "python scripts/audit_repair.py --config audit-config.json > audit.json";
+const statuses = {
+  passed: "Candidate passed",
+  failed: "Candidate failed",
+  inconclusive: "Audit inconclusive",
+};
+type Report = ReturnType<typeof parseAuditReport>;
+
+export default function AuditWorkspace() {
+  const [opened, setOpened] = useState<{ name: string; report: Report } | null>(
+    null,
+  );
+  const [error, setError] = useState("");
+  const request = useRef(0);
+  const report = opened?.report;
+
+  async function openReport(file: File) {
+    const id = ++request.current;
+    setError("");
+    try {
+      if (file.size > maxReportBytes)
+        throw new Error("Choose a report under 2 MiB.");
+      const report = parseAuditReport(await file.text());
+      if (id === request.current) setOpened({ name: file.name, report });
+    } catch (error) {
+      if (id === request.current) {
+        setError(
+          error instanceof SyntaxError
+            ? "This file does not contain valid JSON."
+            : error instanceof Error
+              ? error.message
+              : "Could not read this file.",
+        );
+      }
+    }
+  }
+
+  return (
+    <>
+      <header className="benchmark-header">
+        <a className="wordmark" href={import.meta.env.BASE_URL}>
+          FRANKEN<span>/</span>SHELL
+        </a>
+        <nav aria-label="Project">
+          <a href="?view=benchmarks">CPython cases</a>
+          <a href="?view=lab">Interactive lab</a>
+          <a href={guide}>
+            CLI guide <ArrowUpRight size={13} aria-hidden="true" />
+          </a>
+        </nav>
+      </header>
+      <main className="benchmark-main audit-main">
+        <div className="benchmark-intro">
+          <h1>Review a Python patch</h1>
+          <p>
+            Open a FrankenShell audit to see which behavior changed, which
+            inputs failed, and what each version returned.
+          </p>
+        </div>
+        <section className="audit-import" aria-labelledby="audit-import-title">
+          <div>
+            <h2 id="audit-import-title">Open an audit report</h2>
+            <p>The JSON file stays in this browser.</p>
+          </div>
+          <label className="benchmark-download audit-file">
+            <FileJson size={16} aria-hidden="true" />
+            Choose audit JSON
+            <input
+              type="file"
+              accept=".json,application/json"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = "";
+                if (file) void openReport(file);
+              }}
+            />
+          </label>
+          {error && (
+            <p className="audit-import-error outcome-fail" role="alert">
+              {error}
+            </p>
+          )}
+        </section>
+        {report && (
+          <section className="audit-results" aria-labelledby="audit-title">
+            <header>
+              <div>
+                <h2 id="audit-title">{report.target ?? "Checkout audit"}</h2>
+                <p className="benchmark-meta">{opened.name}</p>
+              </div>
+              <p role="status">
+                <strong>{statuses[report.status]}</strong> ·{" "}
+                {report.inputsChecked} inputs checked
+              </p>
+            </header>
+            {report.error && <p className="benchmark-error">{report.error}</p>}
+            {report.rows.length > 0 && (
+              <div className="benchmark-table-wrap">
+                <table className="benchmark-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Version</th>
+                      <th scope="col">Shared tests</th>
+                      <th scope="col">Failing inputs</th>
+                      <th scope="col">Introduced</th>
+                      <th scope="col">Resolved</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.rows.map((row) => (
+                      <tr key={row.name}>
+                        <th scope="row">{row.name}</th>
+                        <td>{row.tests}</td>
+                        <td>{row.failed}</td>
+                        <td>{row.introduced}</td>
+                        <td>{row.resolved}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {report.witness ? (
+              <div className="audit-witness">
+                <h3>Counterexample</h3>
+                <p>Replay status · {report.witness.confirmation}</p>
+                <h4>Input</h4>
+                <pre>{JSON.stringify(report.witness.input, null, 2)}</pre>
+                <div className="audit-outcomes">
+                  {report.witness.results.map(
+                    ({ name, outcome, violations }) => (
+                      <section key={name}>
+                        <h4>{name}</h4>
+                        <p>
+                          {Object.keys(violations).length
+                            ? "Contract violations"
+                            : "No contract violations"}
+                        </p>
+                        <pre>
+                          {JSON.stringify(
+                            Object.keys(violations).length
+                              ? { outcome, violations }
+                              : outcome,
+                            null,
+                            2,
+                          )}
+                        </pre>
+                      </section>
+                    ),
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="audit-witness">
+                This report contains no counterexample.
+              </p>
+            )}
+            {report.rows.some((row) => row.commit || row.modulePath) && (
+              <details className="audit-witness">
+                <summary>Source and Git revisions</summary>
+                {report.rows.map((row) => (
+                  <p key={row.name}>
+                    <strong>{row.name}</strong>
+                    {row.commit && (
+                      <>
+                        <br />
+                        Commit <code>{row.commit}</code>
+                        {row.dirty && " · Working tree had changes"}
+                      </>
+                    )}
+                    {row.modulePath && (
+                      <>
+                        <br />
+                        Module <code>{row.modulePath}</code>
+                      </>
+                    )}
+                    {row.moduleHash && (
+                      <>
+                        <br />
+                        SHA-256 <code>{row.moduleHash}</code>
+                      </>
+                    )}
+                  </p>
+                ))}
+              </details>
+            )}
+          </section>
+        )}
+        <section className="audit-start">
+          <h2>Run an audit on your code</h2>
+          <p>
+            Configure a baseline, candidate, and behavior contract, then run
+            this command from the FrankenShell checkout.
+          </p>
+          <pre>
+            <code>{command}</code>
+          </pre>
+          <p>
+            <a href={guide}>Set up the checkout verifier</a> ·{" "}
+            <a href="?view=benchmarks">Explore the CPython cases</a>
+          </p>
+        </section>
+      </main>
+    </>
+  );
+}

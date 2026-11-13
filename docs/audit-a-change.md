@@ -69,6 +69,8 @@ python scripts/audit_repair.py --config path/to/audit-config.json > audit.json
 python scripts/audit_repair.py --config path/to/audit-config.json --replay audit.json --format text
 ```
 
+Open `audit.json` in the [web workspace](https://kathir-itech.github.io/frankenshell-kiroween/) to inspect the comparison. The browser reads the report locally.
+
 The JSON report includes the named check failures, actual outcomes for the witness, the imported module's path and SHA-256, and Git HEAD and dirty status when available. Use optional `source_files` to fingerprint implementation files behind an adapter. The optional shared suite records the selected test pattern, test file fingerprint, and methods run. Pin the checkout revisions and Python dependencies for CI.
 
 An exit code of **0** means the candidate passed the checks that ran. **1** means the candidate failed the contract or shared suite. **2** means the audit is inconclusive, for example because an import failed, no tests ran, a process timed out, or the witness changed on rerun. Failures in the baseline and alternatives are reported as comparison evidence. A report with a passing candidate can still contain a witness against an alternative.
