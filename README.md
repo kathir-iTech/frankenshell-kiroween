@@ -2,7 +2,7 @@
 
 A Python patch verifier for maintainers who need to check what a change does on inputs their tests missed. Built for Kiroween 2026 in the Frankenstein category.
 
-The hosted workbench opens with two recorded CPython experiments. Each compares a previous release, an official fix, and a controlled one-line alternative. The alternatives pass the selected upstream test classes. FrankenShell records an input that exposes each difference and produces a plain Python regression test verified against all three versions. **Run in Python** executes the selected input against the three pinned implementations in your browser. The upstream test counts come from the recorded CPython benchmark.
+The hosted workbench opens saved audit reports. The CPython cases show a previous release, an official fix, and a controlled one-line alternative. Each supplies a regression test verified against all three versions. **Run in Python** executes the selected input in your browser. The upstream test counts come from the recorded benchmark.
 
 [Open the hosted workbench](https://kathir-itech.github.io/frankenshell-kiroween/)
 
@@ -35,6 +35,18 @@ Both are historical releases. The experiment supplies the alternatives and execu
 
 ## Run locally
 
+From the FrankenShell checkout, build and launch the local browser workspace:
+
+```sh
+npm ci
+npm run build
+python scripts/serve_workspace.py
+```
+
+The launch command opens a session in your browser. Enter two checkout directories, a `module:function` target, and a Python contract file. Add a shared unittest directory or an alternative checkout when needed. Click **Run audit**, inspect the outcome, and click **Save report** to keep the JSON. The session runs on loopback and executes the checkouts and contract using your local Python interpreter and permissions. Use code you trust. Set `--project-root` to choose the base for relative paths.
+
+For the contract format and a complete invoice example, see the [checkout guide](docs/audit-a-change.md).
+
 **Checking your own Python change?** Use the [local checkout verifier](docs/audit-a-change.md)
 to compare a baseline, proposed fix, and alternatives using the same contract and optional
 shared tests. It reports introduced and resolved violations and saves an input you can replay in CI.
@@ -49,7 +61,7 @@ npm run build
 npm run dev
 ```
 
-Open http://127.0.0.1:5173 . The build copies the pinned Pyodide runtime into the public assets. After installing dependencies and building, examples execute locally; there is no paid inference service. Font loading is optional and falls back to system fonts.
+Open http://127.0.0.1:5173 for frontend development. The build copies the pinned Pyodide runtime into the public assets.
 
 ## What works
 

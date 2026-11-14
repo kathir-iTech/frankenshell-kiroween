@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { ArrowUpRight, FileJson } from "lucide-react";
 import { maxReportBytes, parseAuditReport } from "./audit-report";
+import LocalAuditForm from "./LocalAuditForm";
 import "./benchmarks.css";
 import "./audit-workspace.css";
 
@@ -8,12 +9,17 @@ const guide =
   "https://github.com/kathir-iTech/frankenshell-kiroween/blob/main/docs/audit-a-change.md";
 const command =
   "python scripts/audit_repair.py --config audit-config.json > audit.json";
+const localCommand = "python scripts/serve_workspace.py";
 const statuses = {
   passed: "Candidate passed",
   failed: "Candidate failed",
   inconclusive: "Audit inconclusive",
 };
 type Report = ReturnType<typeof parseAuditReport>;
+const session =
+  location.hostname === "127.0.0.1"
+    ? new URLSearchParams(location.hash.slice(1)).get("session")
+    : null;
 
 function valueText(value: unknown) {
   const compact = JSON.stringify(value);
@@ -25,9 +31,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export default function AuditWorkspace() {
-  const [opened, setOpened] = useState<{ name: string; report: Report } | null>(
-    null,
-  );
+  const [opened, setOpened] = useState<{
+    name: string;
+    report: Report;
+    raw: string;
+  } | null>(null);
   const [error, setError] = useState("");
   const request = useRef(0);
   const report = opened?.report;
@@ -40,8 +48,9 @@ export default function AuditWorkspace() {
     try {
       if (file.size > maxReportBytes)
         throw new Error("Choose a report under 2 MiB.");
-      const report = parseAuditReport(await file.text());
-      if (id === request.current) setOpened({ name: file.name, report });
+      const raw = await file.text();
+      const report = parseAuditReport(raw);
+      if (id === request.current) setOpened({ name: file.name, report, raw });
     } catch (error) {
       if (id === request.current) {
         setError(
@@ -77,6 +86,17 @@ export default function AuditWorkspace() {
             inputs failed, and what each version returned.
           </p>
         </div>
+        {session && (
+          <LocalAuditForm
+            session={session}
+            onReport={(raw) => {
+              const report = parseAuditReport(raw);
+              ++request.current;
+              setError("");
+              setOpened({ name: "audit.json", report, raw });
+            }}
+          />
+        )}
         <section className="audit-import" aria-labelledby="audit-import-title">
           <div>
             <h2 id="audit-import-title">Open an audit report</h2>
@@ -114,6 +134,22 @@ export default function AuditWorkspace() {
                 <strong>{statuses[report.status]}</strong> ·{" "}
                 {report.inputsChecked} inputs checked
               </p>
+              <button
+                className="audit-save"
+                type="button"
+                onClick={() => {
+                  const url = URL.createObjectURL(
+                    new Blob([opened.raw], { type: "application/json" }),
+                  );
+                  const link = document.createElement("a");
+                  link.href = url;
+                  link.download = opened.name;
+                  link.click();
+                  setTimeout(() => URL.revokeObjectURL(url), 1000);
+                }}
+              >
+                Save report
+              </button>
             </header>
             {report.error && <p className="benchmark-error">{report.error}</p>}
             {missed.length > 0 && (
@@ -285,13 +321,16 @@ export default function AuditWorkspace() {
           </section>
         )}
         <section className="audit-start">
-          <h2>Run an audit on your code</h2>
+          <h2>{session ? "Run from the terminal" : "Run on your own code"}</h2>
           <p>
-            Configure a baseline, candidate, and behavior contract, then run
-            this command from the FrankenShell checkout.
+            {session
+              ? "Use the CLI for a saved config and repeatable runs in CI."
+              : "From a FrankenShell checkout, build the workspace and launch it locally. Then enter your checkout paths and run the audit from the browser."}
           </p>
           <pre>
-            <code>{command}</code>
+            <code>
+              {session ? command : `npm ci\nnpm run build\n${localCommand}`}
+            </code>
           </pre>
           <p>
             <a href={guide}>Set up the checkout verifier</a> ·{" "}
