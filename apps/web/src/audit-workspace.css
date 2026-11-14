@@ -134,6 +134,9 @@
 .audit-local p {
   font-size: 14px;
 }
+.audit-local > .audit-save {
+  margin-bottom: 16px;
+}
 .audit-local fieldset {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));

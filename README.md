@@ -47,6 +47,8 @@ The launch command opens a session in your browser. Enter two checkout directori
 
 For the contract format and a complete invoice example, see the [checkout guide](docs/audit-a-change.md).
 
+Use **Load invoice example** to fill the local form with a working set of checkouts. After a completed audit, the workspace remembers the last settings for that project directory on this computer. It restores the fields on launch. Click **Run audit** to run them again.
+
 **Checking your own Python change?** Use the [local checkout verifier](docs/audit-a-change.md)
 to compare a baseline, proposed fix, and alternatives using the same contract and optional
 shared tests. It reports introduced and resolved violations and saves an input you can replay in CI.

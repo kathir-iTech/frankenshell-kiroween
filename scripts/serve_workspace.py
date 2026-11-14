@@ -1,9 +1,11 @@
 """Serve the built FrankenShell workspace and run trusted local audits."""
 
 import argparse
+from hashlib import sha256
 from hmac import compare_digest
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 from pathlib import Path
 import secrets
 import subprocess
@@ -16,6 +18,44 @@ import webbrowser
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORT_LIMIT = 2 * 1024 * 1024
+SETTINGS_LIMIT = 32_768
+
+
+def invoice_example():
+    example = ROOT / "examples" / "invoice"
+    return {
+        "baseline": str(example / "before"),
+        "candidate": str(example / "fix"),
+        "alternative": str(example / "quick-fix"),
+        "target": "invoice:total",
+        "contract": str(example / "invoice_contract.py"),
+        "tests": str(example / "shared-tests"),
+        "cases": 8,
+    }
+
+
+def load_settings(path):
+    try:
+        with path.open("rb") as source:
+            raw = source.read(SETTINGS_LIMIT + 1)
+        if len(raw) <= SETTINGS_LIMIT:
+            data = json.loads(raw)
+            if isinstance(data, dict):
+                return data
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def save_settings(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as output:
+        temporary = Path(output.name)
+    try:
+        temporary.write_text(json.dumps(data), encoding="utf-8")
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 class WorkspaceHandler(SimpleHTTPRequestHandler):
@@ -38,27 +78,40 @@ class WorkspaceHandler(SimpleHTTPRequestHandler):
                 return None
         return super().send_head()
 
-    def reply(self, status, payload):
+    def reply(self, status, payload, *, saved=None):
         data = json.dumps(payload, allow_nan=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(data)))
+        if saved is not None:
+            self.send_header("X-FrankenShell-Settings-Saved", "yes" if saved else "no")
         self.end_headers()
         self.wfile.write(data)
+
+    def has_session(self):
+        return self.headers.get("Host") == self.server.address and compare_digest(
+                self.headers.get("X-FrankenShell-Session", "").encode("utf-8"),
+                self.server.token.encode("ascii"),
+        )
+
+    def do_GET(self):
+        if self.path != "/api/audit-settings":
+            super().do_GET()
+            return
+        if not self.has_session():
+            self.reply(403, {"error": "Open the session URL printed by FrankenShell."})
+            return
+        self.reply(200, {
+            "saved": load_settings(self.server.settings_path),
+            "example": invoice_example(),
+        })
 
     def do_POST(self):
         if self.path != "/api/audit":
             self.reply(404, {"error": "Unknown endpoint"})
             return
-        if (
-            self.headers.get("Host") != self.server.address
-            or self.headers.get("Origin") != f"http://{self.server.address}"
-            or not compare_digest(
-                self.headers.get("X-FrankenShell-Session", "").encode("utf-8"),
-                self.server.token.encode("ascii"),
-            )
-        ):
+        if not self.has_session() or self.headers.get("Origin") != f"http://{self.server.address}":
             self.reply(403, {"error": "Open the session URL printed by FrankenShell."})
             return
         if self.headers.get_content_type() != "application/json":
@@ -66,7 +119,7 @@ class WorkspaceHandler(SimpleHTTPRequestHandler):
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            if not 0 < length <= 32_768:
+            if not 0 < length <= SETTINGS_LIMIT:
                 self.reply(413, {"error": "Audit settings must fit within 32 KiB."})
                 return
             self.connection.settimeout(10)
@@ -79,6 +132,13 @@ class WorkspaceHandler(SimpleHTTPRequestHandler):
             return
         try:
             report = run_audit(self.server.project_root, data)
+            saved = None
+            if report.get("status") in {"passed", "failed"}:
+                try:
+                    save_settings(self.server.settings_path, data)
+                    saved = True
+                except OSError:
+                    saved = False
         except (KeyError, TypeError, ValueError, OSError) as exc:
             self.reply(400, {"error": str(exc)})
         except subprocess.TimeoutExpired:
@@ -86,7 +146,7 @@ class WorkspaceHandler(SimpleHTTPRequestHandler):
         finally:
             self.server.audit_lock.release()
         if "report" in locals():
-            self.reply(200, report)
+            self.reply(200, report, saved=saved)
 
 
 def run_audit(root, data):
@@ -153,6 +213,8 @@ def main():
         server.address = f"127.0.0.1:{server.server_port}"
         server.token = secrets.token_urlsafe(32)
         server.project_root = project_root
+        key = sha256(os.path.normcase(str(project_root)).encode("utf-8")).hexdigest()
+        server.settings_path = Path.home() / ".frankenshell" / "audit-settings" / (key + ".json")
         server.audit_lock = Lock()
         url = f"http://{server.address}/#session={server.token}"
         print(f"Workspace: {url}", flush=True)
