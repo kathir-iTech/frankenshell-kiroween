@@ -85,6 +85,13 @@ export default function AuditWorkspace() {
             Open a FrankenShell audit to see which behavior changed, which
             inputs failed, and what each version returned.
           </p>
+          {!session && (
+            <p>
+              <a href="?view=benchmarks&case=quantiles">
+                Run the CPython quantiles case
+              </a>
+            </p>
+          )}
         </div>
         {session && (
           <LocalAuditForm

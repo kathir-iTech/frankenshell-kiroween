@@ -1,5 +1,11 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmdirSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "@playwright/test";
@@ -15,41 +21,43 @@ function createAudit() {
     return file;
   }
   try {
-  const source = {
-    baseline: "def total(value): return value\n",
-    candidate: "def total(value): return value or 10\n",
-  };
-  for (const [role, content] of Object.entries(source)) {
-    const folder = join(root, role);
-    mkdirSync(folder);
-    folders.push(folder);
-    write(join(role, "invoice.py"), content);
-  }
-  write(
-    "contract.py",
-    "def generate(rng, index): return 0\n" +
-      "def check(value, output): return {} if value == output else {'preserve_zero': {'expected': value, 'actual': output}}\n",
-  );
-  const config = write(
-    "config.json",
-    JSON.stringify({
-      schema_version: 1,
-      target: "invoice:total",
-      display_target: "Invoice total",
-      rule_descriptions: { preserve_zero: "An explicit zero must stay zero." },
-      contract: "contract.py",
-      checkouts: { baseline: "baseline", candidate: "candidate" },
-      cases: 1,
-      timeout: 15,
-    }),
-  );
-  const audit = spawnSync(
-    "python",
-    ["scripts/audit_repair.py", "--config", config],
-    { encoding: "utf8", timeout: 30_000 },
-  );
-  expect(audit.status, audit.stderr || audit.stdout).toBe(1);
-  return audit.stdout;
+    const source = {
+      baseline: "def total(value): return value\n",
+      candidate: "def total(value): return value or 10\n",
+    };
+    for (const [role, content] of Object.entries(source)) {
+      const folder = join(root, role);
+      mkdirSync(folder);
+      folders.push(folder);
+      write(join(role, "invoice.py"), content);
+    }
+    write(
+      "contract.py",
+      "def generate(rng, index): return 0\n" +
+        "def check(value, output): return {} if value == output else {'preserve_zero': {'expected': value, 'actual': output}}\n",
+    );
+    const config = write(
+      "config.json",
+      JSON.stringify({
+        schema_version: 1,
+        target: "invoice:total",
+        display_target: "Invoice total",
+        rule_descriptions: {
+          preserve_zero: "An explicit zero must stay zero.",
+        },
+        contract: "contract.py",
+        checkouts: { baseline: "baseline", candidate: "candidate" },
+        cases: 1,
+        timeout: 15,
+      }),
+    );
+    const audit = spawnSync(
+      "python",
+      ["scripts/audit_repair.py", "--config", config],
+      { encoding: "utf8", timeout: 30_000 },
+    );
+    expect(audit.status, audit.stderr || audit.stdout).toBe(1);
+    return audit.stdout;
   } finally {
     for (const file of paths) unlinkSync(file);
     for (const folder of folders) rmdirSync(folder);
@@ -57,7 +65,9 @@ function createAudit() {
   }
 }
 
-test("opens a real checkout report and keeps the comparison after an invalid import", async ({ page }) => {
+test("opens a real checkout report and keeps the comparison after an invalid import", async ({
+  page,
+}) => {
   const report = createAudit();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("./");
